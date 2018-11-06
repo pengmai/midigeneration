@@ -60,6 +60,9 @@ chords.py
 cmm.py
 > Implements the Generic Markov Model, Statechains, NotesStates, and relevant functions
 
+HMM_3rd_draft.py 
+> Implements the Hidden Markov Model, based on the implementation of the Generic Markov Model
+
 data.py
 > Contains data structures to facilitate working with MIDI tracks, defines edit distance and other functionality
 
