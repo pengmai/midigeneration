@@ -92,7 +92,7 @@ class Markov(object):
         mm = Markov()
         # shallow copies (TODO: deep copy?)
         mm.chain_length = self.chain_length
-        mm.markov = {k: v[:] for k, v in self.markov.iteritems()}
+        mm.markov = {k: v[:] for k, v in self.markov.items()}
         mm.states = self.states.copy()
         mm.state_chains = [ chain[:] for chain in self.state_chains ]
         return mm
@@ -308,7 +308,7 @@ class NoteState(State):
         if use_chords:
             cc = chords.fetch_classifier()
             key_sig, allbars = cc.predict(piece) # assign chord label for each bar
-            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x/piece.bar], origin=piece.filename), positions))
+            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x // piece.bar], origin=piece.filename), positions))
         else:
             state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord='', origin=piece.filename), positions))
 

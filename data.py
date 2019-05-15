@@ -49,7 +49,7 @@ class track(object):
                 self.time_top = event[2]
                 self.time_bottom = event[3]
 
-        self.bar = 4 * self.time_top / self.time_bottom
+        self.bar = 4 * self.time_top // self.time_bottom
         self.notes = self.get_notes(tr)
         self.process()
 
@@ -201,7 +201,6 @@ class piece(object):
         if filename: self.filename = filename
         self.meta = self.midi[0] # meta track
         self.tracks = []
-        self.unified_track = None
         self.pos_offset = pos_offset
         self.unified_midi = [self.midi[0]]
 
