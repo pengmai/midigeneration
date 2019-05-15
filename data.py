@@ -6,10 +6,10 @@ def edit_distance(s1, s2):
     n=len(s2)+1
 
     tbl = {}
-    for i in xrange(m): tbl[i,0]=i
-    for j in xrange(n): tbl[0,j]=j
-    for i in xrange(1, m):
-        for j in xrange(1, n):
+    for i in range(m): tbl[i,0]=i
+    for j in range(n): tbl[0,j]=j
+    for i in range(1, m):
+        for j in range(1, n):
             cost = 0 if s1[i-1] == s2[j-1] else 1
             tbl[i,j] = min(tbl[i, j-1]+1, tbl[i-1, j]+1, tbl[i-1, j-1]+cost)
 
@@ -84,8 +84,7 @@ class track(object):
         l = []
         if not self.positions: return l
         for p in self.positions:
-            l.append(p % self.bar)
-        #print l
+            l.append(p % fixed(self.bar))
         return l
 
     def get_intervals(self):
@@ -120,7 +119,7 @@ class track(object):
         while i < len(notes):
             common_starts = []
             cur_note = notes[i]
-            for j in xrange(i, len(notes)):
+            for j in range(i, len(notes)):
                 if not common_starts or notes[j].pos == cur_note.pos:
                     common_starts.append(notes[j])
                 else:
@@ -147,7 +146,7 @@ class track(object):
         while i < len(notes):
             common_starts = []
             cur_note = notes[i]
-            for j in xrange(i, len(notes)):
+            for j in range(i, len(notes)):
                 if not common_starts or notes[j].pos == cur_note.pos:
                     common_starts.append(notes[j])
                 else:
@@ -308,7 +307,7 @@ class piece(object):
 
         for tr in self.tracks:
             # mark 'tied' notes
-            notes_to_split = [ i for i in xrange(len(tr.notes)) if tr.notes[i].pos < div_tick and div_tick < tr.notes[i].pos + tr.notes[i].dur ]
+            notes_to_split = [ i for i in range(len(tr.notes)) if tr.notes[i].pos < div_tick and div_tick < tr.notes[i].pos + tr.notes[i].dur ]
             left = [ n for n in tr.notes if n.pos + n.dur <= div_tick ]
             right = [ n for n in tr.notes if div_tick <= n.pos ]
 
@@ -373,7 +372,7 @@ if __name__ == '__main__':
         opts, args = getopt.getopt(sys.argv[1:], "", [])
     except getopt.GetoptError as err:
         # print help information and exit:
-        print str(err) # will print something like "option -a not recognized"
+        print(str(err)) # will print something like "option -a not recognized"
         sys.exit(2)
     output = None
     verbose = False
@@ -390,12 +389,12 @@ if __name__ == '__main__':
         def compare_two_pieces():
             if len(sys.argv) >= 3:
                 piece1, piece2 = piece(sys.argv[1]), piece(sys.argv[2])
-                print piece1.compare_with(piece2)
+                print(piece1.compare_with(piece2))
             else:
                 from similar_sections import ss
                 for k,v in ss.pair_dict.keys():
                     piece1, piece2 = piece(k), piece(v)
-                    print (k, v), piece1.compare_with(piece2)
+                    print((k, v), piece1.compare_with(piece2))
         compare_two_pieces()
 
 

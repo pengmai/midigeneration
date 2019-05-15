@@ -8,12 +8,9 @@ import pickle
 import copy
 from os.path import basename
 
-
-global temporary_klist_counter
-global temporary_bar_counter
-global regen_success_counter
-
-
+temporary_klist_counter = 0
+temporary_bar_counter = 0
+regen_success_counter = 0
 
 class Markov(object):
 
@@ -43,18 +40,18 @@ class Markov(object):
         self.state_chains.append(chain)  # adds a chain to state_chain
         buf = [Markov.START_TOKEN] * self.chain_length  # buf will be ['start_token',...] (repeats self.chain_length times)
         for state in chain:
-            v = self.markov.get(tuple(buf), []) 
+            v = self.markov.get(tuple(buf), [])
             bp = state.bar_pos
             v.append(tuple([state, bp]))
             #v.append(tuple([state.bar_pos]))
-            self.markov[tuple(buf)] = v      
+            self.markov[tuple(buf)] = v
             buf = buf[1:] + [tuple([state, bp])] #+ [tuple([state.bar_pos])]
-            self.states.add(state) 
+            self.states.add(state)
         v = self.markov.get(tuple(buf), []) #  will either be the value in self.markov with key tuple(buf) (buf should a list of all states now), or []
-        v.append(Markov.STOP_TOKEN) # update v by adding STOP_TOKEN to the end 
+        v.append(Markov.STOP_TOKEN) # update v by adding STOP_TOKEN to the end
         self.markov[tuple(buf)] = v # update the value that corresponds to key tuple(buf)
         offset = get_key_offset(key_sig[0], 'C')   # transpose everything to C major
-        shifted_chain = [s.transpose(offset) for s in state_chain]                
+        shifted_chain = [s.transpose(offset) for s in state_chain]
         chains.append(shifted_chain)
         '''
         for i in range(1, 6):
@@ -62,19 +59,19 @@ class Markov(object):
             chains.append(shifted_state_chain)
         for i in range(1, 7):
             shifted_state_chain = [ s.transpose(-i) for s in state_chain ]
-            chains.append(shifted_state_chain)       
+            chains.append(shifted_state_chain)
         for chain in chains:
             buf = [HiddenMarkov.START_TOKEN] * self.chain_length  # buf will be ['start_token',...] (repeats self.chain_length times)
             for state in chain:
-                v = self.markov.get(tuple(buf), []) 
+                v = self.markov.get(tuple(buf), [])
                 bp = state.bar_pos
                 v.append(tuple([state, bp]))
                 #v.append(tuple([state.bar_pos]))
-                self.markov[tuple(buf)] = v      
+                self.markov[tuple(buf)] = v
                 buf = buf[1:] + [tuple([state, bp])] #+ [tuple([state.bar_pos])]
-            v = self.markov.get(tuple(buf), []) 
-            v.append(HiddenMarkov.STOP_TOKEN) 
-            self.markov[tuple(buf)] = v  
+            v = self.markov.get(tuple(buf), [])
+            v.append(HiddenMarkov.STOP_TOKEN)
+            self.markov[tuple(buf)] = v
         '''
 
     def generate(self, seed=[], max_len=float("inf"), min_len=float(3000)):
@@ -93,52 +90,52 @@ class Markov(object):
         count = 0
 
         # we might generate an empty statechain, count will stop us from infinite loop
-        while not state_chain and count < 50:  
-            elem = self.generate_next_state(buf) 
-            while elem != Markov.STOP_TOKEN and len(state_chain) < max_len: 
+        while not state_chain and count < 50:
+            elem = self.generate_next_state(buf)
+            while elem != Markov.STOP_TOKEN and len(state_chain) < max_len:
                 temp_count = 1
-                state_chain.append(elem) 
-                buf = self.shift_buffer(buf, elem) 
+                state_chain.append(elem)
+                buf = self.shift_buffer(buf, elem)
                 elem = self.generate_next_state(buf)
-                print len(self.markov[tuple(buf)])
-                # back tracks and continue generation if the minimum length is not reached by 
+                print(len(self.markov[tuple(buf)]))
+                # back tracks and continue generation if the minimum length is not reached by
                 # generation completed
                 if elem is Markov.STOP_TOKEN and len(state_chain)<min_len:
-                    print '%%%%%%%%%%%%%'
-                    print 'Start back tracking'
-                    print '%%%%%%%%%%%%%'
+                    print('%%%%%%%%%%%%%')
+                    print('Start back tracking')
+                    print('%%%%%%%%%%%%%')
                     buf = [state_chain[-temp_count]]
                     while len(self.markov[tuple(buf)]) < 2:
                         temp_count += 1
                         buf = [state_chain[-temp_count]]
-                        print 'temp: ', temp_count
+                        print('temp: ', temp_count)
                     elem = self.generate_next_state(buf)
-                    
+
             count += 1
         if not state_chain:
-            print "Warning: state_chain empty; seed={}".format(seed)
+            print("Warning: state_chain empty; seed={}".format(seed))
         return state_chain
 
     def get_start_buffer(self, seed=[]):
         buf = [Markov.START_TOKEN] * self.chain_length
-        if seed and len(seed) > self.chain_length: 
-            buf = seed[-self.chain_length:] 
+        if seed and len(seed) > self.chain_length:
+            buf = seed[-self.chain_length:]
         elif seed:
-            buf[-len(seed):] = seed 
+            buf[-len(seed):] = seed
         return buf
 
     def shift_buffer(self, buf, elem):
-        return buf[1:] + [tuple([elem, elem.bar_pos])] 
+        return buf[1:] + [tuple([elem, elem.bar_pos])]
 
     def generate_next_state(self, buf):
-        elem_prime = random.choice(markov[tuple(buf)])
-        print "elem_prime: ", elem_prime
+        elem_prime = random.choice(self.markov[tuple(buf)])
+        print("elem_prime: ", elem_prime)
         if elem_prime != HiddenMarkov.STOP_TOKEN:
-            elem = elem_prime[0] 
-            print "elem: ", elem
-            return elem.copy() 
+            elem = elem_prime[0]
+            print("elem: ", elem)
+            return elem.copy()
         else:
-            return elem_prime 
+            return elem_prime
 
     def copy(self):
         mm = Markov()
@@ -159,7 +156,7 @@ class Markov(object):
             mm.add(chain)
         return mm
 
-class State(object): 
+class State(object):
 
     '''
     Basic interface of a state to be used in a Markov model
@@ -327,16 +324,16 @@ class NoteState(State):
         positions = sorted(bin_by_pos.keys())
 
         # produce a state_chain by converting the notes at every position x into a NoteState
-        state_chain = map(lambda x: NoteState(bin_by_pos[x], bar), positions)
+        state_chain = list(map(lambda x: NoteState(bin_by_pos[x], bar), positions))
 
-        if not len(state_chain): 
+        if not len(state_chain):
             return state_chain
 
         # calculate state_duration for each state
         for i in range(len(state_chain) - 1):
             state_chain[i].state_duration = state_chain[i+1].state_position - state_chain[i].state_position
         state_chain[-1].state_duration = max(n.dur for n in state_chain[-1].notes) # the last state needs special care
-        
+
         return state_chain
 
     @staticmethod
@@ -362,18 +359,18 @@ class NoteState(State):
         if use_chords:
             cc = chords.fetch_classifier()
             key_sig, allbars = cc.predict(piece) # assign chord label to each bar
-            state_chain = map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x/piece.bar], origin=piece.filename, bar_number=x/piece.bar), positions)
-            for counter in range(len(allbars)): 
+            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x/piece.bar], origin=piece.filename, bar_number=x/piece.bar), positions))
+            for counter in range(len(allbars)):
                 bc = observations.get(allbars[counter], [])
                 bn = []
                 for s in state_chain:
-                    if s.bar_number == counter: 
+                    if s.bar_number == counter:
                         bn.append(s)
                 bc.append(bn)
                 observations[allbars[counter]] = bc
-                
+
         else:
-            state_chain = map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord='', origin=piece.filename), positions)
+            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord='', origin=piece.filename), positions))
 
         if not len(state_chain):
             return state_chain
@@ -468,9 +465,9 @@ def piece_to_markov_model(musicpiece, classifier=None, segmentation=False, all_k
     '''
 
     mm = Markov()
-    print "all_keys:" + str(all_keys)
+    print("all_keys:" + str(all_keys))
     if not segmentation:
-        key_sig, state_chain, all_bar, observations = NoteState.piece_to_state_chain(musicpiece) 
+        key_sig, state_chain, all_bar, observations = NoteState.piece_to_state_chain(musicpiece)
 
         offset = get_key_offset(key_sig[0], 'C')   # transpose everything to C major
         shifted_state_chain = [s.transpose(offset) for s in state_chain]
@@ -483,7 +480,7 @@ def piece_to_markov_model(musicpiece, classifier=None, segmentation=False, all_k
             for i in range(1, 7):
                 shifted_state_chain = [ s.transpose(-i) for s in state_chain ]
                 mm.add(shifted_state_chain)
-    else: 
+    else:
         if classifier == None:
             raise Exception("classifier cannot be None when calling piece_to_markov_model with segmentation=True")
         segmented = experiments.analysis(musicpiece, classifier)
@@ -506,9 +503,9 @@ def piece_to_markov_model(musicpiece, classifier=None, segmentation=False, all_k
                 ss.mm.add(_state_chain)
             state_chain.append(ss)
 
-        print 'Original Sections: ({})'.format(musicpiece.filename)
-        print [ g.label for g in state_chain ]
-        print chosenscore
+        print('Original Sections: ({})'.format(musicpiece.filename))
+        print([ g.label for g in state_chain ])
+        print(chosenscore)
         mm.add(state_chain)
     return mm
 
@@ -522,7 +519,7 @@ def test_variability(mm, meta, bar):
     for i in range(10):
         song, gen, a = generate_song(mm, meta, bar, True)
         lens.append(len(a))
-    print lens
+    print(lens)
 
 def generate_song(mm, meta, bar, segmentation=False):
 
@@ -540,20 +537,20 @@ def generate_song(mm, meta, bar, segmentation=False):
 
     if not segmentation:
         gen = mm.generate()
-        print [g.origin + ('-' if g.chord else '') + g.chord for g in gen]
+        print([g.origin + ('-' if g.chord else '') + g.chord for g in gen])
     else:
         # if segmentation, mm is a markov model of SegmentStates
         # generate SegmentStates from mm and then generate NoteStates from each
 
         gen_seg = mm.generate()
-        print 'Rearranged Sections:'
-        print [ g.label for g in gen_seg ]
+        print('Rearranged Sections:')
+        print([ g.label for g in gen_seg ])
         gen = SegmentState.state_chain_to_note_states(gen_seg)
 
     a = NoteState.state_chain_to_notes(gen, bar)
     if not a: return generate_song(mm, meta, bar, segmentation)
-    print a
-    print len(a)
+    print(a)
+    print(len(a))
     song.append([ n.note_event() for n in a ])
 
     return song, gen, a
@@ -572,44 +569,44 @@ def generate_output():
     else:
         dir = "./mid/Bach/*"
         pieces = glob.glob(dir)
-        
+
         mm = Markov()
 
         # generate a model _mm for each piece then add them together
-        p = pieces.pop(0)  
+        p = pieces.pop(0)
         musicpiece = data.piece(p)
         # check if the markov model has already been built
         noext = basename(musicpiece.filename)
-        filename = 'markov_cached/markov-{}.pkl'.format(noext)   
+        filename = 'markov_cached/markov-{}.pkl'.format(noext)
         try:
             f = open(filename, 'r')
             _mm = pickle.load(f)
-            print 'Found markov model'
-        except Exception, e:
-            print 'Markov model not found. Building it...'        
+            print('Found markov model')
+        except Exception as e:
+            print('Markov model not found. Building it...')
             _mm = piece_to_markov_model(musicpiece, c, segmentation, all_keys) # no transpose
             save = _mm
             f = open(filename, 'w')
-            pickle.dump(save, f)            
-       
-        
+            pickle.dump(save, f)
+
+
         mm = mm.add_model(_mm)
 
         for p in pieces:
             musicpiece = data.piece(p)
             # check if the markov model has already been built
             noext = basename(musicpiece.filename)
-            filename = 'markov_cached/markov-{}.pkl'.format(noext)   
+            filename = 'markov_cached/markov-{}.pkl'.format(noext)
             try:
                 f = open(filename, 'r')
                 _mm = pickle.load(f)
-                print 'Found markov model'
-            except Exception, e:
-                print 'Markov model not found. Building it...'        
-                _mm = piece_to_markov_model(musicpiece, c, segmentation, all_keys) # no transpose   
+                print('Found markov model')
+            except Exception as e:
+                print('Markov model not found. Building it...')
+                _mm = piece_to_markov_model(musicpiece, c, segmentation, all_keys) # no transpose
                 save = _mm
                 f = open(filename, 'w')
-                pickle.dump(save, f)                         
+                pickle.dump(save, f)
             mm = mm.add_model(_mm)
 
         song, gen, a = generate_song(mm, musicpiece.meta, musicpiece.bar, segmentation)
@@ -653,38 +650,38 @@ class HiddenMarkov(object):
         add a statechain to the markov model (i.e. perform training)
 
         '''
-        self.state_chains.append(chain)  
-        buf = [HiddenMarkov.START_TOKEN] * self.chain_length  
+        self.state_chains.append(chain)
+        buf = [HiddenMarkov.START_TOKEN] * self.chain_length
         for state in chain:
-            v = self.markov.get(tuple(buf), []) 
-            v.append(state) 
-            self.markov[tuple(buf)] = v 
-            buf = buf[1:] + [state] 
-            self.states.add(state) 
-        v = self.markov.get(tuple(buf), []) 
-        v.append(HiddenMarkov.STOP_TOKEN)  
-        self.markov[tuple(buf)] = v 
-        
+            v = self.markov.get(tuple(buf), [])
+            v.append(state)
+            self.markov[tuple(buf)] = v
+            buf = buf[1:] + [state]
+            self.states.add(state)
+        v = self.markov.get(tuple(buf), [])
+        v.append(HiddenMarkov.STOP_TOKEN)
+        self.markov[tuple(buf)] = v
+
     def train_obs(self, observations, key0_sig):
-        ''' train the markov-chains of notes corresponding to each chord label 
+        ''' train the markov-chains of notes corresponding to each chord label
         '''
-        for key in observations: 
-            bar_markov = {} 
+        for key in observations:
+            bar_markov = {}
             for bar_chain in observations[key]:
                 bar_chains = []
-                buf = [HiddenMarkov.START_TOKEN] * self.chain_length  
+                buf = [HiddenMarkov.START_TOKEN] * self.chain_length
                 for state in bar_chain:
-                    v = bar_markov.get(tuple(buf), []) 
+                    v = bar_markov.get(tuple(buf), [])
                     bp = state.bar_pos
                     v.append(tuple([state, bp]))
-                    bar_markov[tuple(buf)] = v      
-                    buf = buf[1:] + [tuple([state, bp])] 
-                v = bar_markov.get(tuple(buf), []) 
-                v.append(HiddenMarkov.STOP_TOKEN) 
-                bar_markov[tuple(buf)] = v                 
+                    bar_markov[tuple(buf)] = v
+                    buf = buf[1:] + [tuple([state, bp])]
+                v = bar_markov.get(tuple(buf), [])
+                v.append(HiddenMarkov.STOP_TOKEN)
+                bar_markov[tuple(buf)] = v
                 '''
                 offset = get_key_offset(key_sig[0], 'C')   # transpose everything to C major
-                shifted_bar_chain = [s.transpose(offset) for s in state_chain]                
+                shifted_bar_chain = [s.transpose(offset) for s in state_chain]
                 bar_chains.append(shifted_bar_chain)
                 '''
                 '''
@@ -693,22 +690,22 @@ class HiddenMarkov(object):
                     bar_chains.append(shifted_bar_chain)
                 for i in range(1, 7):
                     shifted_bar_chain = [ s.transpose(-i) for s in state_chain ]
-                    bar_chains.append(shifted_bar_chain)       
+                    bar_chains.append(shifted_bar_chain)
                 for chain in bar_chains:
                     buf = [HiddenMarkov.START_TOKEN] * self.chain_length  # buf will be ['start_token',...] (repeats self.chain_length times)
                     for state in chain:
-                        v = bar_markov.get(tuple(buf), []) 
+                        v = bar_markov.get(tuple(buf), [])
                         bp = state.bar_pos
                         v.append(tuple([state, bp]))
                         #v.append(tuple([state.bar_pos]))
-                        bar_markov[tuple(buf)] = v      
+                        bar_markov[tuple(buf)] = v
                         buf = buf[1:] + [tuple([state, bp])] #+ [tuple([state.bar_pos])]
-                    v = bar_markov.get(tuple(buf), []) 
-                    v.append(HiddenMarkov.STOP_TOKEN) 
-                    bar_markov[tuple(buf)] = v 
+                    v = bar_markov.get(tuple(buf), [])
+                    v.append(HiddenMarkov.STOP_TOKEN)
+                    bar_markov[tuple(buf)] = v
                 '''
             self.obs_markov[tuple([key])] = bar_markov
-        
+
     def generate_hidden(self, seed=[], max_len=float("inf"), min_len=float(30)):
         '''
         generate a chain of Hidden States, which are the chord label of bars
@@ -717,14 +714,14 @@ class HiddenMarkov(object):
         state_chain = []
         count = 0
 
-        while not state_chain and count < 50:  
-            elem = self.generate_next_state(buf) 
-            while elem != HiddenMarkov.STOP_TOKEN and len(state_chain) < max_len: 
+        while not state_chain and count < 50:
+            elem = self.generate_next_state(buf)
+            while elem != HiddenMarkov.STOP_TOKEN and len(state_chain) < max_len:
                 temp_count = 1
-                state_chain.append(elem) 
-                buf = self.shift_buffer(buf, elem) 
-                elem = self.generate_next_state(buf) 
-                
+                state_chain.append(elem)
+                buf = self.shift_buffer(buf, elem)
+                elem = self.generate_next_state(buf)
+
                 '''
                 if elem is HiddenMarkov.STOP_TOKEN and len(state_chain)<min_len:
                     print '%%%%%%%%%%%%%'
@@ -736,12 +733,12 @@ class HiddenMarkov(object):
                         buf = [state_chain[-temp_count]]
                         print 'temp: ', temp_count
                     elem = self.generate_next_state(buf)
-                ''' 
+                '''
             count += 1
         if not state_chain:
-            print "Warning: state_chain empty; seed={}".format(seed)
+            print("Warning: state_chain empty; seed={}".format(seed))
         return state_chain
-    
+
     def generate_bar(self, bar_markov, next_bar_markov, piece_markov, note_chain, bar, next_bar, seed=[], max_len=float("inf"), min_len=float(2)):
         '''
         generate a statechain from a (already trained) model
@@ -753,20 +750,20 @@ class HiddenMarkov(object):
         transitions from segments to segments are accomplished by using seed to look for a next valid segment
         that starts with the same seed as the previous segment ends with?
         '''
-        
+
         global temporary_klist_counter
         global regen_success_counter
-        
-        generate_success = False 
+
+        generate_success = False
         forfeit_gen = False
         regen_counter = 0
-        
-        while (not generate_success) and (not forfeit_gen): 
-            klist_success = False 
+
+        while (not generate_success) and (not forfeit_gen):
+            klist_success = False
             ##markov = bar_markov
             state_chain = []
             count = 0
-            
+
             # at the start, note chain is empty
             start_marker = 0
             if not note_chain:
@@ -775,148 +772,148 @@ class HiddenMarkov(object):
             else: # otherwise let buf be the previous note
                 buf = [tuple([note_chain[-1], (note_chain[-1]).bar_pos])]
                 start_marker = 1
-                
-    
+
+
             # we might generate an empty statechain, count will stop us from infinite loop
-            while not state_chain and count < 50:  
+            while not state_chain and count < 50:
                 # if it is the start of the entire piece
                 if start_marker == 0:
                     elem = self.generate_next_state_bar(buf,bar_markov) # generate a random next state using buf
-                # otherwise try to connect bar to the previous bar 
+                # otherwise try to connect bar to the previous bar
                 else:
                     klist = piece_markov[tuple(buf)]
                     klist = list(set(klist))
                     ##print 'klist len: ', len(klist)
                     counter = len(klist)-1
-                    while counter >= 0 and klist: 
+                    while counter >= 0 and klist:
                         ##print 'counter: ', counter
-                        if tuple([klist[counter]]) not in bar_markov: 
+                        if tuple([klist[counter]]) not in bar_markov:
                             klist.pop(counter)
                             counter = counter - 1
-                        else: 
+                        else:
                             counter -= 1
                     ##elem = mm.generate_next_state(buf)
                     if klist:
-                        
+
                         klist_success = True
                         elem_prime = (random.choice(klist))
                         elem = elem_prime[0]
-                        
-                        print len(klist)
-                    else: 
+
+                        print(len(klist))
+                    else:
                         buf = self.get_start_buffer(seed)
                         elem = self.generate_next_state_bar(buf,bar_markov)
-                        
-                while elem != Markov.STOP_TOKEN and len(state_chain) < max_len: 
+
+                while elem != Markov.STOP_TOKEN and len(state_chain) < max_len:
                     temp_count = 1
-                    state_chain.append(elem) 
+                    state_chain.append(elem)
                     buf = self.shift_bar_buffer(buf, elem)
-                    
-                    elem = self.generate_next_state_bar(buf,bar_markov) 
-                     
+
+                    elem = self.generate_next_state_bar(buf,bar_markov)
+
                 count += 1
-                
+
             if not state_chain:
-                print "Warning: state_chain empty; seed={}".format(seed)
+                print("Warning: state_chain empty; seed={}".format(seed))
                 break
-            
+
             if next_bar != None:
                 # check if the end state contain notes allowed in the next bar
-                # first by making a list of all possible end states 
+                # first by making a list of all possible end states
                 last_key_list = []
                 last_key_list_final = []
                 for key in self.obs_markov[tuple([bar])]:
-                    if 'stop_token' in self.obs_markov[tuple([bar])][key]: 
-                        last_key_list.append(key) 
-       
+                    if 'stop_token' in self.obs_markov[tuple([bar])][key]:
+                        last_key_list.append(key)
+
                 for state in last_key_list:
                     slist = piece_markov[state]
                     slist = list(set(slist))
                     counter = len(slist)-1
-                    while counter >= 0 and slist: 
+                    while counter >= 0 and slist:
                         if tuple([slist[counter]]) not in next_bar_markov:
                             slist.pop(counter)
                             counter = counter - 1
-                        else: 
-                            counter -= 1 
-                    if len(slist) > 0: 
+                        else:
+                            counter -= 1
+                    if len(slist) > 0:
                         last_key_list_final.append(state)
-            
-                print state_chain
-                
-                if regen_counter >= 50: 
+
+                print(state_chain)
+
+                if regen_counter >= 50:
                     # impossible to find desired end states, stop trying
                     forfeit_gen = True
                     # TODO: backtracking
-                    
+
                 if tuple([tuple([state_chain[-1], (state_chain[-1]).bar_pos])]) in last_key_list_final:
                     generate_success = True
                     regen_success_counter += 1
-                    if klist_success == True: 
-                        temporary_klist_counter += 1 
+                    if klist_success == True:
+                        temporary_klist_counter += 1
                 else:
                     regen_counter += 1
-            else: 
+            else:
                 generate_success = True
-                regen_success_counter += 1                
-            
+                regen_success_counter += 1
+
         return state_chain
-    
+
     def generate(self, hidden_chain, piece_markov):
         global temporary_bar_counter
-        
+
         note_chain = []
-        for hs in range(len(hidden_chain)-1): 
+        for hs in range(len(hidden_chain)-1):
             bm = hmm.obs_markov[tuple([hidden_chain[hs]])]
             nbm = hmm.obs_markov[tuple([hidden_chain[hs+1]])]
-            bar = hidden_chain[hs] 
+            bar = hidden_chain[hs]
             next_bar = hidden_chain[hs+1]
             bc = hmm.generate_bar(bm, nbm, piece_markov, note_chain, bar, next_bar)
             note_chain = note_chain + bc
             temporary_bar_counter += 1
-            
-            print 'bar: ', temporary_bar_counter
+
+            print('bar: ', temporary_bar_counter)
         bm = hmm.obs_markov[tuple([hidden_chain[-1]])]
         nbm = None
         bar = hidden_chain[-1]
         next_bar = None
         bc = hmm.generate_bar(bm, nbm, piece_markov, note_chain, bar, next_bar)
         note_chain = note_chain + bc
-        temporary_bar_counter += 1        
-        
+        temporary_bar_counter += 1
+
         return note_chain
-                
+
     def get_start_buffer(self, seed=[]):
         buf = [HiddenMarkov.START_TOKEN] * self.chain_length
-        if seed and len(seed) > self.chain_length: 
-            buf = seed[-self.chain_length:] 
+        if seed and len(seed) > self.chain_length:
+            buf = seed[-self.chain_length:]
         elif seed:
-            buf[-len(seed):] = seed 
+            buf[-len(seed):] = seed
         return buf
 
     def shift_buffer(self, buf, elem):
-        return buf[1:] + [elem] 
-    
-    def shift_bar_buffer(self, buf, elem): 
+        return buf[1:] + [elem]
+
+    def shift_bar_buffer(self, buf, elem):
         return buf[1:] + [tuple([elem, elem.bar_pos])]
 
     def generate_next_state(self, buf):
         ''' Generate the next Hidden State '''
-        elem = random.choice(self.markov[tuple(buf)]) 
+        elem = random.choice(self.markov[tuple(buf)])
         if elem != HiddenMarkov.STOP_TOKEN:
             return elem.copy() # prevents change of the underlying states of the markov model
         else:
             return elem
-    
+
     def generate_next_state_bar(self, buf, markov):
-        ''' Generate the note state in a bar ''' 
+        ''' Generate the note state in a bar '''
         elem_prime = random.choice(markov[tuple(buf)])
         if elem_prime != HiddenMarkov.STOP_TOKEN:
-            elem = elem_prime[0] 
+            elem = elem_prime[0]
             return elem.copy() # prevents change of the underlying states of the markov model
         else:
-            return elem_prime 
-    
+            return elem_prime
+
     def copy(self):
         hmm = HiddenMarkov()
         # shallow copies (TODO: deep copy?)
@@ -941,42 +938,34 @@ class HiddenMarkov(object):
 if __name__ == '__main__':
     #generate_output()
     #generate_score('output.mid')
-    global temporary_klist_counter 
-    global temporary_bar_counter 
-    global regen_success_counter
-    
-    temporary_klist_counter = 0 
-    temporary_bar_counter = 0
-    regen_success_counter = 0
-    
-    segmentation = False 
+
+    segmentation = False
     c = patterns.fetch_classifier()
-    all_keys = False    
-    print 'o'
-    ##p = ["./mid/Bach/bwv802.mid", "mid/easywinners.mid"] 
+    all_keys = False
+    print('o')
+    ##p = ["./mid/Bach/bwv802.mid", "mid/easywinners.mid"]
     p = ["./mid/Bach/bwv802.mid"]
     hmm = HiddenMarkov()
     mm = Markov()
-    
-    for piece in p: 
+
+    for piece in p:
         musicpiece = data.piece(piece)
         # here all_bar is the list of chord labels generated for each bar
-        key_sig, state_chain, all_bar, observations = NoteState.piece_to_state_chain(musicpiece) 
-        hmm.add(all_bar)   
+        key_sig, state_chain, all_bar, observations = NoteState.piece_to_state_chain(musicpiece)
+        hmm.add(all_bar)
         hmm.train_obs(observations, key_sig)
         mm.add(state_chain)
-    
+
     hidden_chain = hmm.generate_hidden()
-    if len(hidden_chain) < 100: 
-        print 'result too short'
-        
+    if len(hidden_chain) < 100:
+        print('result too short')
+
     note_chain = hmm.generate(hidden_chain, mm.markov)
     a = NoteState.state_chain_to_notes(note_chain, musicpiece.bar)
     song = []
-    song.append(musicpiece.meta)    
+    song.append(musicpiece.meta)
     song.append([ n.note_event() for n in a ])
-    print 'bar number: ', temporary_bar_counter
-    print 'klist succeeded: {} times'.format(temporary_klist_counter)
-    print 'regen_success: ', regen_success_counter
+    print('bar number: ', temporary_bar_counter)
+    print('klist succeeded: {} times'.format(temporary_klist_counter))
+    print('regen_success: ', regen_success_counter)
     midi.write('output_hmm.mid', song)
-    

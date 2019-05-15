@@ -11,9 +11,9 @@ def fetch_classifier():
     try:
         from sklearn.externals import joblib
         c = joblib.load('cached/classifier.pkl')
-    except Exception, e:
-        print e
-        print "Retraining classifier..."
+    except Exception as e:
+        print(e)
+        print("Retraining classifier...")
         from sklearn.externals import joblib
         c = analyze.train_classifier(analyze.generate())
         joblib.dump(c, 'cached/classifier.pkl')
@@ -29,7 +29,7 @@ class timer:
     def __exit__(self, type, value, traceback):
         self.end_time = time.time()
         elapsed = int(self.end_time - self.start_time)
-        print self.print_string, '<time taken: {}m {}s>'.format(elapsed / 60, elapsed % 60)
+        print(self.print_string, '<time taken: {}m {}s>'.format(elapsed / 60, elapsed % 60))
 
 def preprocess_segments(Piece, c):
     segs = {}
@@ -39,7 +39,7 @@ def preprocess_segments(Piece, c):
         # k is the size of the interval to use, in bars. We incrementally analyze the
         # similarity of each interval to its downstream neighbour
         for k in range(1, Piece.num_bars + 1):
-            print "Preprocess Segments: Part 1/2; Part {}/{}".format(k, Piece.num_bars)
+            print("Preprocess Segments: Part 1/2; Part {}/{}".format(k, Piece.num_bars))
 
             segs = {}
             # split the piece into intervals of size k bars each
@@ -223,10 +223,10 @@ if __name__ == '__main__':
             two = musicpiece.segment_by_bars(b10, b11)
             features = [one.compare_with(two)]
             similarity_score = c.predict_proba(features)[0][1] # get similarity_score
-            print "SIMPROB:", similarity_score
+            print("SIMPROB:", similarity_score)
             headers = [ 'Feature' + str(i) for i in range(len(features[0])) ]
             features.insert(0, headers)
             from tabulate import tabulate
-            print "FEATURES:\n", tabulate(features)
+            print("FEATURES:\n", tabulate(features))
 
         compare_bars(musicpiece, c, b00, b01, b10, b11)

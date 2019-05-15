@@ -67,7 +67,7 @@ class Markov(object):
                 elem = self.generate_next_state(buf) # generate another
             count += 1
         if not state_chain:
-            print "Warning: state_chain empty; seed={}".format(seed)
+            print("Warning: state_chain empty; seed={}".format(seed))
         return state_chain
 
     def get_start_buffer(self, seed=[]):
@@ -274,7 +274,7 @@ class NoteState(State):
         positions = sorted(bin_by_pos.keys())
 
         # produce a state_chain by converting the notes at every position x into a NoteState
-        state_chain = map(lambda x: NoteState(bin_by_pos[x], bar), positions)
+        state_chain = list(map(lambda x: NoteState(bin_by_pos[x], bar), positions))
 
         if not len(state_chain):
             return state_chain
@@ -308,9 +308,9 @@ class NoteState(State):
         if use_chords:
             cc = chords.fetch_classifier()
             key_sig, allbars = cc.predict(piece) # assign chord label for each bar
-            state_chain = map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x/piece.bar], origin=piece.filename), positions)
+            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x/piece.bar], origin=piece.filename), positions))
         else:
-            state_chain = map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord='', origin=piece.filename), positions)
+            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord='', origin=piece.filename), positions))
 
         if not len(state_chain):
             return state_chain
@@ -405,7 +405,7 @@ def piece_to_markov_model(musicpiece, classifier=None, segmentation=False, all_k
     '''
 
     mm = Markov()
-    print "all_keys:" + str(all_keys)
+    print("all_keys:" + str(all_keys))
     if not segmentation:
         key_sig, state_chain = NoteState.piece_to_state_chain(musicpiece, True) # always use chords
         offset = get_key_offset(key_sig[0], 'C')   # transpose everything to C major
@@ -442,9 +442,9 @@ def piece_to_markov_model(musicpiece, classifier=None, segmentation=False, all_k
                 ss.mm.add(_state_chain)
             state_chain.append(ss)
 
-        print 'Original Sections: ({})'.format(musicpiece.filename)
-        print [ g.label for g in state_chain ]
-        print chosenscore
+        print('Original Sections: ({})'.format(musicpiece.filename))
+        print([ g.label for g in state_chain ])
+        print(chosenscore)
         mm.add(state_chain)
     return mm
 
@@ -458,7 +458,7 @@ def test_variability(mm, meta, bar):
     for i in range(10):
         song, gen, a = generate_song(mm, meta, bar, True)
         lens.append(len(a))
-    print lens
+    print(lens)
 
 def generate_song(mm, meta, bar, segmentation=False):
 
@@ -476,14 +476,14 @@ def generate_song(mm, meta, bar, segmentation=False):
 
     if not segmentation:
         gen = mm.generate()
-        print [g.origin + ('-' if g.chord else '') + g.chord for g in gen]
+        print([g.origin + ('-' if g.chord else '') + g.chord for g in gen])
     else:
         # if segmentation, mm is a markov model of SegmentStates
         # generate SegmentStates from mm and then generate NoteStates from each
 
         gen_seg = mm.generate()
-        print 'Rearranged Sections:'
-        print [ g.label for g in gen_seg ]
+        print('Rearranged Sections:')
+        print([ g.label for g in gen_seg ])
         gen = SegmentState.state_chain_to_note_states(gen_seg)
 
     a = NoteState.state_chain_to_notes(gen, bar)

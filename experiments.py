@@ -27,9 +27,9 @@ class analysis(object):
         try:
             f = open(filename, 'r')
             self.d, self.match = pickle.load(f)
-            print 'Found previously preprocessed data; using that to reduce computation time'
-        except Exception, e:
-            print 'Previously preprocessed data not found. Computing them...'
+            print('Found previously preprocessed data; using that to reduce computation time')
+        except Exception:
+            print('Previously preprocessed data not found. Computing them...')
             _, self.d, self.match = patterns.preprocess_segments(self.musicpiece, c)
             save = (self.d, self.match)
             f = open(filename, 'w')

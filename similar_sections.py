@@ -67,7 +67,7 @@ class similar_sections:
                     out_dict[(mid1, mid2)] = 0
 
         s = []
-        for k, v in out_dict.iteritems():
+        for k, v in out_dict.items():
             if self.prefix in k[0]: k0 = self.pieces_dict[k[0]]
             else: k0 = data.piece(k[0])
             if self.prefix in k[1]: k1 = self.pieces_dict[k[1]]
@@ -104,7 +104,7 @@ class similar_sections:
                         counter += 1
                         out_dict[(mid1, mid2)] = 0
         s = []
-        for k, v in out_dict.iteritems():
+        for k, v in out_dict.items():
             if self.prefix in k[0]: k0 = self.pieces_dict[k[0]]
             else: k0 = data.piece(k[0])
             if self.prefix in k[1]: k1 = self.pieces_dict[k[1]]

@@ -37,7 +37,7 @@ def train_classifier(sdata, classifier=None):
     X_train = X_digits[:]
     y_train = y_digits[:]
 
-    if not classifier:
+    if classifier is None:
         #classifier = svm.NuSVC(nu=0.01, probability=True)
         #classifier = linear_model.RidgeClassifierCV()
         classifier = linear_model.LogisticRegression(C=3.0)
@@ -72,20 +72,20 @@ def test(sdata, classifier=None, verbose=True, verboseverbose=False):
 
     if verboseverbose:
         # print the matrix of feature scores
-        big_matrix = np.array([ np.hstack((X_test[i], y_test[i])) for i in xrange(len(X_test)) ])
-        print ['Tr0Rhyt','Tr0TopL','Tr1Rhyt','Tr1TopL','Truth']
-        print big_matrix
+        big_matrix = np.array([ np.hstack((X_test[i], y_test[i])) for i in range(len(X_test)) ])
+        print(['Tr0Rhyt','Tr0TopL','Tr1Rhyt','Tr1TopL','Truth'])
+        print(big_matrix)
     if verbose:
-        print 'TRUTH:', y_test
-        print 'PREDN:', pred
-        print ('Classifier score: %f' % score)
+        print('TRUTH:', y_test)
+        print('PREDN:', pred)
+        print('Classifier score: %f' % score)
 
     return score, pred, y_test
 
 def evaluate_n(n, sdata, classifier):
     avg_score = 0.0
     pred_overall, y_test_overall = np.array([]), np.array([])
-    for i in xrange(n):
+    for i in range(n):
         score, pred, y_test = test(sdata, classifier, verbose=False if n > 1 else True)
         avg_score += score / n
         pred_overall = np.hstack((pred_overall, pred))
@@ -97,10 +97,10 @@ def evaluate_n(n, sdata, classifier):
         sys.stdout.write("\r")
         sys.stdout.flush()
 
-    print "---- Num of Repetitions:", n
-    print "---- Average Score:", avg_score
+    print("---- Num of Repetitions:", n)
+    print("---- Average Score:", avg_score)
     np.set_printoptions(linewidth=999999)
-    print confusion_matrix(y_test_overall, pred_overall)
+    print(confusion_matrix(y_test_overall, pred_overall))
 
 if __name__ == '__main__':
 

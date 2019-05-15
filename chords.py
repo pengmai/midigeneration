@@ -141,7 +141,7 @@ class chord_classifier(object):
         gen = []
         for tonic, ctemplate, nf in self.gen.generate(k):
             gen.append((nf, translate(tonic) + ctemplate.prefix))
-        print 'Total number of samples:', len(gen)
+        print('Total number of samples:', len(gen))
 
         random.shuffle(gen)
         target = np.array([ v[1] for v in gen ])
@@ -158,9 +158,9 @@ class chord_classifier(object):
         nf = note_frequency() # nf is a bin, where the key is the pitch (mod 12) and the value is the sum of the durations of all notes that have that pitch
         for n in piece.unified_track.notes:
             nf.add(n)
-        ta = np.array(nf.normalize().to_list())
+        ta = np.array(nf.normalize().to_list()).reshape(1, -1)
         key_sig = self.classifier.predict(ta)
-        print 'Key Signature :', key_sig
+        print('Key Signature :', key_sig)
 
         allbars = []
         for i in range(piece.num_bars):
@@ -168,7 +168,7 @@ class chord_classifier(object):
             p = piece.segment_by_bars(i, i+1)
             for n in p.unified_track.notes:
                 nf.add(n)
-            ta = np.array(nf.normalize().to_list())
+            ta = np.array(nf.normalize().to_list()).reshape(1, -1)
             predicted = self.classifier.predict(ta)
             allbars.append(predicted[0])
         return key_sig, allbars
@@ -199,9 +199,9 @@ def fetch_classifier():
         from sklearn.externals import joblib
         c = joblib.load('cached/chord-classifier.pkl')
         cc.classifier = c
-    except Exception, e:
-        print e
-        print "Retraining classifier..."
+    except Exception as e:
+        print(e)
+        print("Retraining classifier...")
         cc.train()
         joblib.dump(cc.classifier, 'cached/chord-classifier.pkl')
     return cc
@@ -266,24 +266,24 @@ if __name__ == '__main__':
             for i in range(len(truth['chords'])):
                 if truth['chords'][i] == allbars[i]:
                     s += 1
-            print 'Correct Score: {}/{}'.format(s, len(truth['chords']))
+            print('Correct Score: {}/{}'.format(s, len(truth['chords'])))
             count += 1
             scores.append(s)
-            print 'Count =', count
+            print('Count =', count)
 
             #if s > max_ and s > 38:
             #    max_ = s
             #    joblib.dump(cc.classifier, 'cached/chord-classifier.pkl')
-        print 'Max =', max(scores)
-        print 'Min =', min(scores)
-        print 'Mean =', sum(scores) / float(count)
-        print 'Stddev =', np.std(np.array(scores))
+        print('Max =', max(scores))
+        print('Min =', min(scores))
+        print('Mean =', sum(scores) / float(count))
+        print('Stddev =', np.std(np.array(scores)))
 
     elif len(sys.argv) == 2:
         musicpiece = data.piece(sys.argv[1])
         cc = fetch_classifier()
         allbars = cc.predict(musicpiece)
         for i, predicted in enumerate(allbars):
-            print 'Bar {}:'.format(i), predicted
+            print('Bar {}:'.format(i), predicted)
         #embed()
 
