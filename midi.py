@@ -118,13 +118,10 @@ def getcommands(trackchunk):
         # status byte for the received data bytes
         elif running_status:
             if running_status & 0xf0 in [0x80, 0x90, 0xa0, 0xb0, 0xe0]:
-                print(running_status)
-                print(trackchunk[i:i+2])
-                print('Commands:', commands, 'running_status:', [running_status + trackchunk[i:i+2]])
-                commands[-1] += [running_status+trackchunk[i:i+2]]
+                commands[-1] += [bytes([running_status])+trackchunk[i:i+2]]
                 i+=2
             elif running_status & 0xf0 in [0xc0, 0xd0]:
-                commands[-1] += [running_status+trackchunk[i:i+1]]
+                commands[-1] += [bytes([running_status])+trackchunk[i:i+1]]
                 i+=1
             else: # this is technically impossible
                 raise Exception("error")
