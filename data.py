@@ -219,7 +219,7 @@ class piece(object):
             total_length = self.unified_track.notes[-1].pos + self.unified_track.notes[-1].dur
         else:
             total_length = 0
-        self.num_bars = (total_length + self.bar - 1) / self.bar
+        self.num_bars = int((total_length + self.bar - 1) / self.bar)
 
         for tr in self.midi[1:]:
             newtrack = track(tr, self.meta, self.pos_offset)
