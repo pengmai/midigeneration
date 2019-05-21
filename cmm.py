@@ -123,7 +123,7 @@ class State(object):
         return hash(tup)
 
     def __eq__(self, other):
-        return self.state_data() == other.state_data()
+        return isinstance(other, State) and self.state_data() == other.state_data()
 
     def __repr__(self):
         tup = self.state_data()

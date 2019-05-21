@@ -283,26 +283,21 @@ def read(filename):
 
 #Write a midi track to a file based on a list of bytes.
 #The track header and end message are appended automatically, so they should not be included in bytes.
-def writetrack(file, bytes):
-    bytes=["\0","\xff","\x01","\0"]+bytes+["\x01","\xff","\x2f","\0"]#Put a 1 here to match Sibelius 2.
-    size0=len(bytes)%0x100
-    size1=(len(bytes)>>8)%0x100
-    size2=(len(bytes)>>16)%0x100
-    size3=(len(bytes)>>24)
+def writetrack(ffile, byte_s):
+    byte_s=["\0","\xff","\x01","\0"]+byte_s+["\x01","\xff","\x2f","\0"]#Put a 1 here to match Sibelius 2.
+    size0 = len(byte_s)%0x100
+    size1 = (len(byte_s)>>8)%0x100
+    size2 = (len(byte_s)>>16)%0x100
+    size3 = (len(byte_s)>>24)
     trackheader=["M","T","r","k",chr(size3),chr(size2),chr(size1),chr(size0)]
-    bytes=trackheader+bytes
-    for byte in bytes:
-        file.write(byte)
+    byte_s = trackheader + byte_s
+    for byte in byte_s:
+        ffile.write(byte.encode('latin-1'))
     return
 
-def comparetime(message1, message2):
-    if message1[1]<message2[1]:
-        #raise Exception("error")
-        return -1
-    elif message1[1]==message2[1]:
-        return 0
-    else:
-        return 1
+def get_time(message):
+    """Retrieves the time field for a note message"""
+    return message[1]
 
 def ilog2(x):
     result=-1
@@ -313,63 +308,64 @@ def ilog2(x):
 
 #Write a midi file based on a nicely constructed list.
 def write(filename, song):
-    file=open(filename,"wb")
-    ticks=0
-    for event in song[0]:
-        if event[0]=="ticks":
-            ticks=event[2]
-    if ticks==0:
-        raise Exception("error")
-    tracks=len(song)
-    header=["M","T","h","d","\0","\0","\0","\6","\0","\1","\0",chr(tracks),chr(ticks>>8),chr(ticks&0xff)]
-    for byte in header:
-        file.write(byte)
-    bytes=[]
-    lasttime=0
-    for event in song[0]:
-        if event[0]=="tempo":
-            bytes+=delta(event[1]-lasttime)
-            bytes+=["\xff","\x51","\x03"]
-            bytes+=[chr(event[2]>>16),chr((event[2]>>8)&0xff),chr(event[2]&0xff)]
-        elif event[0]=="time":
-            bytes+=delta(event[1]-lasttime)
-            bytes+=["\xff","\x58","\x04"]
-            bytes+=[chr(event[2]),chr(ilog2(event[3])),chr(24),chr(8)]
-        elif event[0]=="key":
-            bytes+=delta(event[1]-lasttime)
-            bytes+=["\xff","\x59","\x02"]
-            sharps=event[2]
-            if sharps<0:
-                sharps=0x100+sharps
-            bytes+=[chr(sharps),chr(event[3])]
-        lasttime=event[1]
-    writetrack(file, bytes)
-    for track in song[1:]:
-        messages=[]
-        for event in track:
-            if event[0]=="note":
-                messages+=[["on",event[1],event[3],event[4]]]
-                messages+=[["off",event[1]+event[2],event[3],event[4]]]
-        messages.sort(comparetime)
-        lasttime=0
-        for i in range(len(messages)):
-            temp=messages[i][1]
-            messages[i][1]=messages[i][1]-lasttime
-            lasttime=temp
+    # print(song)
+    # raise Exception('Stop')
+    with open(filename, 'wb') as f:
+        ticks=0
+        for event in song[0]:
+            if event[0]=="ticks":
+                ticks=event[2]
+        if ticks==0:
+            raise Exception("error")
+        tracks=len(song)
+        header=["M","T","h","d","\0","\0","\0","\6","\0","\1","\0",chr(tracks),chr(ticks>>8),chr(ticks&0xff)]
+        for byte in header:
+            f.write(byte.encode('latin-1'))
         bytes=[]
-        for message in messages:
-            if message[0]=="on":
-                bytes+=delta(message[1])
-                bytes+=[chr(0x90|message[2])]
-                bytes+=[chr(message[3])]
-                bytes+=["\x79"]
-            elif message[0]=="off":
-                bytes+=delta(message[1])
-                bytes+=[chr(0x80|message[2])]
-                bytes+=[chr(message[3])]
-                bytes+=["\0"]
-        writetrack(file, bytes)
-    file.close()
+        lasttime=0
+        for event in song[0]:
+            if event[0]=="tempo":
+                bytes+=delta(event[1]-lasttime)
+                bytes+=["\xff","\x51","\x03"]
+                bytes+=[chr(event[2]>>16),chr((event[2]>>8)&0xff),chr(event[2]&0xff)]
+            elif event[0]=="time":
+                bytes+=delta(event[1]-lasttime)
+                bytes+=["\xff","\x58","\x04"]
+                bytes+=[chr(event[2]),chr(ilog2(event[3])),chr(24),chr(8)]
+            elif event[0]=="key":
+                bytes+=delta(event[1]-lasttime)
+                bytes+=["\xff","\x59","\x02"]
+                sharps=event[2]
+                if sharps<0:
+                    sharps=0x100+sharps
+                bytes+=[chr(sharps),chr(event[3])]
+            lasttime=event[1]
+        writetrack(f, bytes)
+        for track in song[1:]:
+            messages=[]
+            for event in track:
+                if event[0]=="note":
+                    messages+=[["on",event[1],event[3],event[4]]]
+                    messages+=[["off",event[1]+event[2],event[3],event[4]]]
+            messages.sort(key=get_time)
+            lasttime=0
+            for i in range(len(messages)):
+                temp=messages[i][1]
+                messages[i][1]=messages[i][1]-lasttime
+                lasttime=temp
+            bytes=[]
+            for message in messages:
+                if message[0]=="on":
+                    bytes+=delta(message[1])
+                    bytes+=[chr(0x90|message[2])]
+                    bytes+=[chr(message[3])]
+                    bytes+=["\x79"]
+                elif message[0]=="off":
+                    bytes+=delta(message[1])
+                    bytes+=[chr(0x80|message[2])]
+                    bytes+=[chr(message[3])]
+                    bytes+=["\0"]
+            writetrack(f, bytes)
     return
 
 def transpose(song, amount):
