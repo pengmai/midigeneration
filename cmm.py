@@ -504,8 +504,7 @@ def generate_output():
         song, gen, a = generate_song(mm, musicpiece.meta, musicpiece.bar, segmentation)
 
     else:
-        dir = "./mid/Bach/*"
-        pieces = glob.glob(dir)
+        pieces = glob.glob('./mid/Bach/*')
         #pieces = ["mid/Bach/bwv804.mid", "mid/Bach/bwv802.mid"]
 
         mm = Markov()
@@ -524,7 +523,7 @@ def generate_output():
         song, gen, a = generate_song(mm, musicpiece.meta, musicpiece.bar, segmentation)
 
     midi.write('output.mid', song)
-    return
+
 
 def generate_score(file):
     '''(str) -> NoneType
@@ -534,7 +533,7 @@ def generate_score(file):
     import music21   # required to display score
     midi_file_output = music21.converter.parse(file)
     midi_file_output.show()
-    return
+
 
 if __name__ == '__main__':
     generate_output()
