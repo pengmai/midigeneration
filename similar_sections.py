@@ -35,7 +35,7 @@ class similar_sections:
         self.pair_dict[(u1, u2)] = 1
 
     def add_pair_by_bars(self, filename, b00, b01, b10, b11):
-        p = data.piece(filename)
+        p = data.Piece(filename)
         p1 = p.segment_by_bars(b00, b01)
         p2 = p.segment_by_bars(b10, b11)
         self.add_pair(p1, p2)
@@ -44,7 +44,7 @@ class similar_sections:
         if self.pair_dict.get((mid1, mid2), 0) == 1:
             return 1
         else:
-            return pair_dict.get((mid2, mid1), 0)
+            return self.pair_dict.get((mid2, mid1), 0)
 
     def generate_targets(self):
         if self.targets: return self.targets
@@ -69,9 +69,9 @@ class similar_sections:
         s = []
         for k, v in out_dict.items():
             if self.prefix in k[0]: k0 = self.pieces_dict[k[0]]
-            else: k0 = data.piece(k[0])
+            else: k0 = data.Piece(k[0])
             if self.prefix in k[1]: k1 = self.pieces_dict[k[1]]
-            else: k1 = data.piece(k[1])
+            else: k1 = data.Piece(k[1])
             s.append((k0, k1, v))
         self.targets = s
         return s
@@ -106,9 +106,9 @@ class similar_sections:
         s = []
         for k, v in out_dict.items():
             if self.prefix in k[0]: k0 = self.pieces_dict[k[0]]
-            else: k0 = data.piece(k[0])
+            else: k0 = data.Piece(k[0])
             if self.prefix in k[1]: k1 = self.pieces_dict[k[1]]
-            else: k1 = data.piece(k[1])
+            else: k1 = data.Piece(k[1])
             s.append((k0, k1, v))
         self.targets = s
         return s

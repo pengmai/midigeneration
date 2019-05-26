@@ -19,7 +19,7 @@ def edit_distance_norm(s1, s2):
     if len(s1) + len(s2) == 0: return 0.0
     return min(edit_distance(s1, s2) / float(len(s1) + len(s2)), 0.5)
 
-class note(object):
+class Note:
     def __init__(self, note_event, pos_offset=0):
         self.pos = note_event[1] + pos_offset
         self.dur = note_event[2]
@@ -33,12 +33,12 @@ class note(object):
         return ['note', self.pos + pos_offset, self.dur, self.chn, self.pitch]
 
     def copy(self):
-        return note(self.note_event())
+        return Note(self.note_event())
 
     def __repr__(self):
         return str([self.pos, self.dur, self.chn, self.pitch])
 
-class track(object):
+class Track:
 
     def __init__(self, tr, meta, pos_offset=0):
         self.time_top = 4
@@ -57,7 +57,7 @@ class track(object):
         return [ n.pitch for n in self.notes ]
 
     def get_notes(self, tr, pos_offset=0):
-        notes = [note(n, pos_offset) for n in tr]
+        notes = [Note(n, pos_offset) for n in tr]
         return notes
 
     def get_durations(self):
@@ -176,7 +176,7 @@ class track(object):
         self.absolute_pitches = self.get_absolute_pitches()
         return self
 
-class piece(object):
+class Piece:
     '''
     Takes the nested list representation of midi files and breaks that down into the individual
     tracks. Stores the meta track, other tracks, and a unified track.
@@ -211,7 +211,7 @@ class piece(object):
             self.unified_midi[1].extend(tr)
 
         self.unified_midi[1].sort(key = lambda v: (v[1], v[2]))
-        track1 = track(self.unified_midi[1], self.meta, self.pos_offset)
+        track1 = Track(self.unified_midi[1], self.meta, self.pos_offset)
         self.unified_track = track1
         self.bar = self.unified_track.bar * self.unified_track.ticks
         if self.unified_track.notes:
@@ -221,7 +221,7 @@ class piece(object):
         self.num_bars = int((total_length + self.bar - 1) / self.bar)
 
         for tr in self.midi[1:]:
-            newtrack = track(tr, self.meta, self.pos_offset)
+            newtrack = Track(tr, self.meta, self.pos_offset)
             self.tracks.append(newtrack)
 
     def key(self):
@@ -295,7 +295,7 @@ class piece(object):
             for n in temp:
                 n.pitch += offset
             newmidi.append([ n.note_event() for n in temp ])
-        p = piece(newmidi, self.filename)
+        p = Piece(newmidi, self.filename)
         return p
 
     def segment(self, div_tick, only=''):
@@ -326,11 +326,11 @@ class piece(object):
                 piece2midi.append([ n.note_event_with_pos_offset(-div_tick) for n in right ])
 
         if only == 'left':
-            return piece(piece1midi, self.filename), None
+            return Piece(piece1midi, self.filename), None
         elif only == 'right':
-            return None, piece(piece2midi, self.filename)
+            return None, Piece(piece2midi, self.filename)
         else:
-            return piece(piece1midi, self.filename), piece(piece2midi, self.filename)
+            return Piece(piece1midi, self.filename), Piece(piece2midi, self.filename)
 
     def split_by_bars(self, bar_0, bar_1=-1):
         # return only the specified bars from index bar_0 to bar_1 (end point exclusive)
@@ -349,7 +349,7 @@ class piece(object):
             offset = 1
         else:
             offset = bar_1 - bar_0
-        left, right = self.segment((bar_0 + offset) * self.bar, only='left')
+        left, _ = self.segment((bar_0 + offset) * self.bar, only='left')
         left, center = left.segment(bar_0 * self.bar, only='right')
         return center
 
@@ -387,12 +387,12 @@ if __name__ == '__main__':
     else:
         def compare_two_pieces():
             if len(sys.argv) >= 3:
-                piece1, piece2 = piece(sys.argv[1]), piece(sys.argv[2])
+                piece1, piece2 = Piece(sys.argv[1]), Piece(sys.argv[2])
                 print(piece1.compare_with(piece2))
             else:
                 from similar_sections import ss
                 for k,v in ss.pair_dict.keys():
-                    piece1, piece2 = piece(k), piece(v)
+                    piece1, piece2 = Piece(k), Piece(v)
                     print((k, v), piece1.compare_with(piece2))
         compare_two_pieces()
 
