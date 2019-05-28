@@ -3,22 +3,20 @@ import argparse
 import random, glob
 import data, midi, experiments, patterns
 from state import NoteState, SegmentState
+import os
 import pickle
-from os.path import basename
 
 temporary_klist_counter = 0
 temporary_bar_counter = 0
 regen_success_counter = 0
 
 class Markov:
-
     '''
     Generic object for a Markov model
 
     trains state and state transitions by reading statechains
     statechain: a list of states
     state: a concrete class derived from the abstract class State
-
     '''
     START_TOKEN = 'start_token'
     STOP_TOKEN = 'stop_token'
@@ -30,10 +28,7 @@ class Markov:
         self.state_chains = [[]]
 
     def add(self, chain):
-        '''
-        add a statechain to the markov model (i.e. perform training)
-
-        '''
+        '''Add a statechain to the markov model (i.e. perform training).'''
         chains =[]
         self.state_chains.append(chain)  # adds a chain to state_chain
         buf = [Markov.START_TOKEN] * self.chain_length  # buf will be ['start_token',...] (repeats self.chain_length times)
@@ -74,14 +69,15 @@ class Markov:
 
     def generate(self, seed=[], max_len=float("inf"), min_len=float(3000)):
         '''
-        generate a statechain from a (already trained) model
+        Generate a statechain from a (already trained) model.
         seed is optional; if provided, will build statechain from seed
         len is optional; if provided, will only build statechain up to given len
 
         note: seed is untested and may very well not work...
-        however, seed is core functionality that will help combine all_keys and segmentation (in the future)
-        transitions from segments to segments are accomplished by using seed to look for a next valid segment
-        that starts with the same seed as the previous segment ends with?
+        however, seed is core functionality that will help combine all_keys and
+        segmentation (in the future). Transitions from segments to segments are
+        accomplished by using seed to look for a next valid segment that starts
+        with the same seed as the previous segment ends with?
         '''
         buf = self.get_start_buffer(seed)
         state_chain = []
@@ -165,7 +161,7 @@ def get_key_offset(key1, key2):
     key2 = str(key2)
 
     # map all minor keys to major keys, and also all redundant major keys to major keys
-    key_dict = {'Am': 'C',          # begin minor keys
+    key_dict = {'Am': 'C',          # minor keys
                 'Em': 'G',
                 'Bm': 'D',
                 'F#/Gbm': 'A',
@@ -176,12 +172,12 @@ def get_key_offset(key1, key2):
                 'Dm': 'F',
                 'Gm': 'Bb',
                 'Cm': 'Eb',
-                'Fm': 'Ab',         # end minor keys
-                'C#/Db': 'C#',      # begin redundant major keys
+                'Fm': 'Ab',
+                'C#/Db': 'C#',      # redundant major keys
                 'F#/Gb': 'F#',
                 'G#/Ab': 'Ab',
                 'D#/Eb': 'Eb',
-                'A#/Bb': 'Bb'}      # end redundant major keys
+                'A#/Bb': 'Bb'}
 
     # keep a dict of the pitch deltas (a delta of 1 corresponds to moving up a half note on the keyboard)
     # transposing from the first key to the second, ie ('C','G') means transposing from C major to G major
@@ -271,9 +267,9 @@ def piece_to_markov_model(musicpiece, classifier=None, segmentation=False, all_k
                 ss.mm.add(_state_chain)
             state_chain.append(ss)
 
-        print('Original Sections: ({})'.format(musicpiece.filename))
-        print([ g.label for g in state_chain ])
-        print(chosenscore)
+        # print('Original Sections: ({})'.format(musicpiece.filename))
+        # print([ g.label for g in state_chain ])
+        # print(chosenscore)
         mm.add(state_chain)
     return mm
 
@@ -343,7 +339,7 @@ def generate_output(args):
         p = pieces.pop(0)
         musicpiece = data.Piece(p)
         # check if the markov model has already been built
-        noext = basename(musicpiece.filename)
+        noext = os.path.basename(musicpiece.filename)
         filename = 'markov_cached/markov-{}.pkl'.format(noext)
         try:
             f = open(filename, 'r')
@@ -362,7 +358,7 @@ def generate_output(args):
         for p in pieces:
             musicpiece = data.Piece(p)
             # check if the markov model has already been built
-            noext = basename(musicpiece.filename)
+            noext = os.path.basename(musicpiece.filename)
             filename = 'markov_cached/markov-{}.pkl'.format(noext)
             try:
                 f = open(filename, 'r')
@@ -487,18 +483,17 @@ class HiddenMarkov:
                 buf = self.shift_buffer(buf, elem)
                 elem = self.generate_next_state(buf)
 
-                '''
                 if elem is HiddenMarkov.STOP_TOKEN and len(state_chain)<min_len:
-                    print '%%%%%%%%%%%%%'
-                    print 'Start back tracking'
-                    print '%%%%%%%%%%%%%'
-                    buf = [state_chain[-temp_count]]
-                    while len(self.markov[tuple(buf)]) < 2:
-                        temp_count += 1
-                        buf = [state_chain[-temp_count]]
-                        print 'temp: ', temp_count
-                    elem = self.generate_next_state(buf)
-                '''
+                    print('%%%%%%%%%%%%')
+                    print('Start back tracking')
+                    print('%%%%%%%%%%%%')
+                    # buf = [state_chain[-temp_count]]
+                    # while len(self.markov[tuple(buf)]) < 2:
+                    #     temp_count += 1
+                    #     buf = [state_chain[-temp_count]]
+                    #     print 'temp: ', temp_count
+                    # elem = self.generate_next_state(buf)
+
             count += 1
         if not state_chain:
             print("Warning: state_chain empty; seed={}".format(seed))

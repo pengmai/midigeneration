@@ -47,7 +47,7 @@ if __name__ == '__main__':
     c = patterns.fetch_classifier()
 
     def get_patterns(filename, b0, b1):
-        musicpiece = data.piece(filename)
+        musicpiece = data.Piece(filename)
         a = analysis(musicpiece, c, b0, b1)
         chosenscore, chosen, labelled_sections = a.chosenscore, a.chosen, a.labelled_sections
         a.chosenlabels = [(b, labelled_sections[b]) for b in chosen]

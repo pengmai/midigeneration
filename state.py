@@ -1,12 +1,10 @@
 import chords
 from decimal import ROUND_HALF_DOWN, Decimal as fixed
 
-class State(object):
-
+class State:
     '''
     Basic interface of a state to be used in a Markov model
     Please override state_data() and copy()
-
     '''
 
     def state_data(self):
