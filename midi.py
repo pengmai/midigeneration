@@ -44,7 +44,7 @@ def delta(ticks):
         ticks=ticks>>7
         result=[byte]+result
         if len(result)>4:
-                raise Exception("Delta time should not be more than 4 bytes long.")
+            raise Exception("Delta time should not be more than 4 bytes long.")
         if ticks==0:
             for i in range(len(result)-1):
                 result[i]|=0x80
@@ -276,10 +276,9 @@ def parse(bytes):
 #"key": Values are ticks, number of sharps (negative means flats), major (0) or minor (1)
 #"note": Values are ticks, duration, channel, note number
 def read(filename):
-    file=open(filename,"rb")#Open in binary read mode.
-    bytes=file.read()
-    file.close()
-    return parse(bytes)
+    with open(filename, 'rb') as f:
+        contents = f.read()
+    return parse(contents)
 
 #Write a midi track to a file based on a list of bytes.
 #The track header and end message are appended automatically, so they should not be included in bytes.
@@ -308,21 +307,19 @@ def ilog2(x):
 
 #Write a midi file based on a nicely constructed list.
 def write(filename, song):
-    # print(song)
-    # raise Exception('Stop')
     with open(filename, 'wb') as f:
-        ticks=0
+        ticks = 0
         for event in song[0]:
-            if event[0]=="ticks":
-                ticks=event[2]
-        if ticks==0:
-            raise Exception("error")
-        tracks=len(song)
-        header=["M","T","h","d","\0","\0","\0","\6","\0","\1","\0",chr(tracks),chr(ticks>>8),chr(ticks&0xff)]
+            if event[0] == "ticks":
+                ticks = event[2]
+        if ticks == 0:
+            raise Exception("Failed to find 'ticks' event in song")
+        tracks = len(song)
+        header = ["M","T","h","d","\0","\0","\0","\6","\0","\1","\0",chr(tracks),chr(ticks>>8),chr(ticks&0xff)]
         for byte in header:
             f.write(byte.encode('latin-1'))
-        bytes=[]
-        lasttime=0
+        bytes = []
+        lasttime = 0
         for event in song[0]:
             if event[0]=="tempo":
                 bytes+=delta(event[1]-lasttime)

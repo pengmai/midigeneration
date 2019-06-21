@@ -23,7 +23,7 @@ class analysis(object):
 
     def fetch_preprocessed(self, c, b0, b1):
         noext = basename(self.musicpiece.filename)
-        filename = 'cached/preprocessed-{}-{}-{}.pkl'.format(noext, b0, b1)
+        filename = '.cached/preprocessed-{}-{}-{}.pkl'.format(noext, b0, b1)
         try:
             f = open(filename, 'r')
             self.d, self.match = pickle.load(f)

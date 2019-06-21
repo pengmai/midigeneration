@@ -13,6 +13,7 @@ from sklearn import linear_model, svm
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 import numpy as np
 import random, sys
+import pickle
 from IPython import embed
 import analyze, data
 
@@ -96,7 +97,7 @@ class chord_template(object):
         self.auxiliary = auxiliary
 
 
-class chord_generator(object):
+class ChordGenerator:
 
     def __init__(self, templates, bar, div):
 
@@ -111,33 +112,30 @@ class chord_generator(object):
         templates.append(chord_template('Minor Triad', 'm', [0, 3, 7], [2, 5, 8, 11]))
         #templates.append(chord_template('Dom7', '7', [0, 4, 7, 10]))
         #templates.append(chord_template('Dim7', '7m', [0, 3, 6, 9]))
-        return chord_generator(templates, bar=4*1024, div=16)
+        return ChordGenerator(templates, bar=4*1024, div=16)
 
     def generate(self, k):
         ''' generate k bar's worth of note_frequency for each template
             total generated = k * len(templates)
         '''
 
-        for k_ in range(k):
+        for _ in range(k):
             for ctemplate in self.templates:
                 for tonic in range(12):
                     nf = note_frequency()
-                    for i in range(self.div + random.choice(range(self.div))):
+                    for _ in range(self.div + random.choice(range(self.div))):
                         pitch = random.choice(ctemplate.template * 1 + ctemplate.auxiliary * 0) # auxiliary * 0 means no noise
                         dur = self.bar / self.div
-                        n = data.note(['note', 0, dur, 0, tonic + pitch])
+                        n = data.Note.from_event(['note', 0, dur, 0, tonic + pitch])
                         nf.add(n)
                     yield tonic, ctemplate, nf
 
-class chord_classifier(object):
+class ChordClassifier:
+    def __init__(self, classifier):
+        self.classifier = classifier
+        self.gen = ChordGenerator.default_generator()
 
-    def __init__(self, c):
-        self.classifier = c
-        self.gen = chord_generator.default_generator()
-
-    def generate_train_set(self, k=-1):
-        if k == -1: k = 500
-
+    def generate_train_set(self, k=500):
         gen = []
         for tonic, ctemplate, nf in self.gen.generate(k):
             gen.append((nf, translate(tonic) + ctemplate.prefix))
@@ -193,17 +191,19 @@ def freq_integral(object):
 
 def fetch_classifier():
     rforest = RandomForestClassifier(n_estimators=100)
-    cc = chord_classifier(rforest)
+    cc = ChordClassifier(rforest)
+    filename = '.cached/chord-classifier.pkl'
 
     try:
-        from sklearn.externals import joblib
-        c = joblib.load('cached/chord-classifier.pkl')
+        with open(filename, 'rb') as f:
+            c = pickle.load(f)
         cc.classifier = c
     except Exception as e:
         print(e)
         print("Retraining classifier...")
         cc.train()
-        joblib.dump(cc.classifier, 'cached/chord-classifier.pkl')
+        with open(filename, 'wb') as f:
+            pickle.dump(cc.classifier, f)
     return cc
 
 
@@ -255,8 +255,7 @@ if __name__ == '__main__':
         max_ = 0
         count, scores = 0, []
         truth = chord_truths()[0]
-        musicpiece = data.piece(truth['piece'])
-        from sklearn.externals import joblib
+        musicpiece = data.Piece(truth['piece'])
         while count < 30:
             #cc = chord_classifier(rforest)
             #cc.train()
@@ -273,14 +272,14 @@ if __name__ == '__main__':
 
             #if s > max_ and s > 38:
             #    max_ = s
-            #    joblib.dump(cc.classifier, 'cached/chord-classifier.pkl')
+            #    joblib.dump(cc.classifier, '.cached/chord-classifier.pkl')
         print('Max =', max(scores))
         print('Min =', min(scores))
         print('Mean =', sum(scores) / float(count))
         print('Stddev =', np.std(np.array(scores)))
 
     elif len(sys.argv) == 2:
-        musicpiece = data.piece(sys.argv[1])
+        musicpiece = data.Piece(sys.argv[1])
         cc = fetch_classifier()
         allbars = cc.predict(musicpiece)
         for i, predicted in enumerate(allbars):

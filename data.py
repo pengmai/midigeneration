@@ -20,11 +20,16 @@ def edit_distance_norm(s1, s2):
     return min(edit_distance(s1, s2) / float(len(s1) + len(s2)), 0.5)
 
 class Note:
-    def __init__(self, note_event, pos_offset=0):
-        self.pos = note_event[1] + pos_offset
-        self.dur = note_event[2]
-        self.chn = note_event[3]
-        self.pitch = note_event[4]
+    def __init__(self, pos, dur, chn, pitch, pos_offset=0):
+        self.pos = pos + pos_offset
+        self.dur = dur
+        self.chn = chn
+        self.pitch = pitch
+
+    @staticmethod
+    def from_event(note_event, pos_offset=0):
+        [_, pos, dur, chn, pitch] = note_event
+        return Note(pos, dur, chn, pitch, pos_offset)
 
     def note_event(self):
         return ['note', self.pos, self.dur, self.chn, self.pitch]
@@ -33,32 +38,39 @@ class Note:
         return ['note', self.pos + pos_offset, self.dur, self.chn, self.pitch]
 
     def copy(self):
-        return Note(self.note_event())
+        return Note.from_event(self.note_event())
 
     def __repr__(self):
-        return str([self.pos, self.dur, self.chn, self.pitch])
+        return f'Note(pos={self.pos}, dur={self.dur}, chn={self.chn}, pitch={self.pitch})'
 
 class Track:
-
     def __init__(self, tr, meta, pos_offset=0):
         self.time_top = 4
         self.time_bottom = 4
+        self.bpm = 120
         for event in meta:
             if event[0] == 'ticks': self.ticks = event[2]
             elif event[0] == 'time': #TODO: time sig could change
                 self.time_top = event[2]
                 self.time_bottom = event[3]
+            elif event[0] == 'tempo':
+                # BPM is obtained via dividing number of microseconds per minute
+                # by the number of microseconds per beat.
+                # TODO: BPM could change.
+                self.bpm = round(60_000_000 / event[2])
 
         self.bar = 4 * self.time_top // self.time_bottom
-        self.notes = self.get_notes(tr)
-        self.process()
+        self.notes = [ Note.from_event(n, pos_offset) for n in tr ]
+        self.topline = self.get_topline()
+        self.botline = self.get_botline()
+        self.positions = self.get_positions()
+        self.bar_positions = self.get_bar_positions()
+        self.intervals = self.get_intervals()
+        self.directions = self.get_directions()
+        self.absolute_pitches = self.get_absolute_pitches()
 
     def pitches(self): # augment to show better info
         return [ n.pitch for n in self.notes ]
-
-    def get_notes(self, tr, pos_offset=0):
-        notes = [Note(n, pos_offset) for n in tr]
-        return notes
 
     def get_durations(self):
         # notes: a list of notes
@@ -72,7 +84,7 @@ class Track:
         return l
 
     def get_positions(self):
-        # notes: a list of note's
+        # notes: a list of Note objects
         positions = sorted(list(set([n.pos for n in self.notes])))
         l = []
         if not positions: return l
@@ -166,15 +178,6 @@ class Track:
         if not self.topline: return []
         return [ n.pitch % 12 for n in self.topline ]
 
-    def process(self):
-        self.topline = self.get_topline()
-        self.botline = self.get_botline()
-        self.positions = self.get_positions()
-        self.bar_positions = self.get_bar_positions()
-        self.intervals = self.get_intervals()
-        self.directions = self.get_directions()
-        self.absolute_pitches = self.get_absolute_pitches()
-        return self
 
 class Piece:
     '''
@@ -210,7 +213,7 @@ class Piece:
             tr = self.midi[i]
             self.unified_midi[1].extend(tr)
 
-        self.unified_midi[1].sort(key = lambda v: (v[1], v[2]))
+        self.unified_midi[1].sort(key=lambda v: (v[1], v[2]))
         track1 = Track(self.unified_midi[1], self.meta, self.pos_offset)
         self.unified_track = track1
         self.bar = self.unified_track.bar * self.unified_track.ticks

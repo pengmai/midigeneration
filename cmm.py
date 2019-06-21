@@ -1,8 +1,9 @@
 # Markov Model thingy
 import argparse
 import random, glob
-import data, midi, experiments, patterns, chords
-from state import NoteState, SegmentState
+import midi, experiments, patterns, chords
+from data import Piece
+from models import NoteState, SegmentState
 import pickle
 import copy
 
@@ -278,7 +279,7 @@ def generate_output(args):
     all_keys = False
 
     if args.mid and args.start is not None and args.end is not None:
-        musicpiece = data.piece(args.mid)
+        musicpiece = Piece(args.mid)
         musicpiece = musicpiece.segment_by_bars(args.start, args.end)
         mm = piece_to_markov_model(musicpiece, c, segmentation)
         song, gen, a = generate_song(mm, musicpiece.meta, musicpiece.bar, segmentation)
@@ -291,7 +292,7 @@ def generate_output(args):
 
         # generate a model _mm for each piece then add them together
         for p in pieces:
-            musicpiece = data.piece(p)
+            musicpiece = Piece(p)
             _mm = piece_to_markov_model(musicpiece, c, segmentation, all_keys)
             mm = mm.add_model(_mm)
 

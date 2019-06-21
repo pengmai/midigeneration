@@ -73,6 +73,8 @@ class NoteState(State):
     - origin: midi filename
 
     '''
+    counter = 1
+    cache = {}
 
     def __init__(self, notes, bar, chord='', origin='', bar_number=0):
         # State holds multiple notes, all with the same pos
@@ -80,13 +82,19 @@ class NoteState(State):
         self.bar = bar
         self.bar_pos = fixed(self.notes[0].pos % bar) / bar
         self.state_position = fixed(self.notes[0].pos) / bar
-        self.state_duration = 0 # set later
+        self.state_duration = fixed(0) # set later
         self.chord = chord
         self.origin = origin
         self.bar_number = bar_number
 
         for n in self.notes:
             n.dur = fixed(n.dur) / bar
+
+        if self in NoteState.cache:
+            self.state_id = NoteState.cache[self]
+        else:
+            NoteState.cache[self] = self.state_id = NoteState.counter
+            NoteState.counter += 1
 
     def state_data(self):
         ''' make hashable version of state information intended to be hashed '''
@@ -102,6 +110,9 @@ class NoteState(State):
         s.bar_pos = self.bar_pos
         s.state_position = self.state_position
         s.state_duration = self.state_duration
+        # if s not in NoteState.cache:
+        #     print(self in NoteState.cache, s in NoteState.cache)
+        # s.state_id = self.state_id
         return s
 
     def transpose(self, offset):
@@ -133,9 +144,14 @@ class NoteState(State):
     @staticmethod
     def state_chain_to_notes(state_chain, bar):
         '''
-        Convert a state chain (a list of NoteStates) to notes
-        arg bar: number of ticks to define a bar for midi files
+        Convert a state chain to notes.
 
+        Parameters
+        ----------
+        state_chain : list of NoteStates
+            the state chain to convert
+        bar : int
+            number of ticks to define a bar for midi files
         '''
 
         last_pos = 0
@@ -182,9 +198,12 @@ class NoteState(State):
     @staticmethod
     def piece_to_state_chain(piece, use_chords=True):
         '''
-        Convert a data.piece into a state chain (list of NoteStates)
-        arg use_chords: if True, NoteState holds chord label as state information
+        Convert a Piece into a state chain (list of NoteStates)
 
+        Parameters
+        ----------
+        use_chords : boolean, optional
+            if True, NoteState holds chord label as state information
         '''
         # TODO: shouldn't have to hardcode this
         use_chords = True
@@ -202,7 +221,7 @@ class NoteState(State):
         if use_chords:
             cc = chords.fetch_classifier()
             key_sig, allbars = cc.predict(piece) # assign chord label to each bar
-            state_chain = list(map(lambda x: NoteState(bin_by_pos[x], piece.bar, chord=allbars[x//piece.bar], origin=piece.filename, bar_number=x//piece.bar), positions))
+            state_chain = [NoteState(bin_by_pos[pos], piece.bar, chord=allbars[pos//piece.bar], origin=piece.filename, bar_number=pos//piece.bar) for pos in positions]
             for counter in range(len(allbars)):
                 bc = observations.get(allbars[counter], [])
                 bn = []
@@ -226,5 +245,5 @@ class NoteState(State):
         return key_sig, state_chain, allbars, observations
 
     def __repr__(self):
-        tup = self.state_data()
-        return str(tup) + ' ' + str(self.notes)
+        # return f'NoteState(notes={self.notes}, bar={self.bar}, chord=\'{self.chord}\', origin=\'{self.origin}\', bar_number={self.bar_number})'
+        return f'NoteState({self.state_id})'

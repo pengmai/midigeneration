@@ -31,7 +31,7 @@ class Recommender(object):
 
         for p in self.pieces:
             print(p)
-            musicpiece = data.piece(p)
+            musicpiece = data.Piece(p)
             # segmentation off by default, all_keys off by default
             # this should automatically transpose everything to C major
             _mm = cmm.piece_to_markov_model(musicpiece, c, segmentation, all_keys)
@@ -53,7 +53,7 @@ class Recommender(object):
         '''
         # hash the names of the pieces contained in the model
         hashnum = hash(frozenset(self.pieces))
-        name = 'cached/rec/rec-{}-{}.pkl'.format(self.type, str(hashnum))
+        name = '.cached/rec/rec-{}-{}.pkl'.format(self.type, str(hashnum))
         if os.path.isfile(name):
             print("This Recommender object already exists, not saving.")
         else:
@@ -67,14 +67,14 @@ class Recommender(object):
         :return: None
         '''
         if piece in self.pieces:
-            print piece + " already in model."
+            print(piece + " already in model.")
             return
 
         c = patterns.fetch_classifier()
         segmentation = False
         all_keys = True
 
-        musicpiece = data.piece(piece)
+        musicpiece = data.Piece(piece)
         _mm = cmm.piece_to_markov_model(musicpiece, c, segmentation, all_keys)
         self.mm = self.mm.add_model(_mm)
 
@@ -101,7 +101,7 @@ class Recommender(object):
             same_start = set()
             for key in model.markov.keys():
                 ns = key[0]
-                if type(ns) == types.StringType: continue   # start and stop tokens
+                if type(ns) == str: continue   # start and stop tokens
                 if ns.chord == seed.chord:
                     same_key.add(ns)
                     if ns.bar_pos.quantize(fixed('0.01'), ROUND_HALF_DOWN) == seed.bar_pos.quantize(fixed('0.01'), ROUND_HALF_DOWN):
@@ -220,7 +220,7 @@ def recommend(piece1, style, training, typ, num_recs=4, piece2=None):
     '''
 
     # check if this already exists
-    name = "cached/rec/rec-{}-{}.pkl".format(style, hash(frozenset(training)))
+    name = ".cached/rec/rec-{}-{}.pkl".format(style, hash(frozenset(training)))
     if os.path.isfile(name):
         with open(name, "rb") as fh:
             rec = cPickle.load(fh)
@@ -229,7 +229,7 @@ def recommend(piece1, style, training, typ, num_recs=4, piece2=None):
         rec.save()
 
     # get the incomplete piece
-    piece1 = data.piece(piece1)
+    piece1 = data.Piece(piece1)
     # label the piece by chords, determine the length of the seed bars
     use_chords = True
     key_sig, unshifted_state_chain = cmm.NoteState.piece_to_state_chain(piece1, use_chords)
@@ -237,7 +237,7 @@ def recommend(piece1, style, training, typ, num_recs=4, piece2=None):
     state_chain1 = [s.transpose(offset) for s in unshifted_state_chain]
 
     if piece2 is not None:
-        piece2 = data.piece(piece2)
+        piece2 = data.Piece(piece2)
         key_sig, unshifted_state_chain = cmm.NoteState.piece_to_state_chain(piece2, use_chords)
         offset = cmm.get_key_offset(key_sig[0], 'C')
         state_chain2 = [s.transpose(offset) for s in unshifted_state_chain]
@@ -253,7 +253,7 @@ def recommend(piece1, style, training, typ, num_recs=4, piece2=None):
         seed = [state_chain1[-1]]
         end = []
     else:   # this shouldn't happen
-        print "Error: Second piece not given"
+        print("Error: Second piece not given")
         return 0
 
     # generate new states by providing the seed bars
@@ -261,7 +261,7 @@ def recommend(piece1, style, training, typ, num_recs=4, piece2=None):
     results = []
     for i in range(num_recs):
         res = rec.recommend(seed, 100, end)
-        print [g.origin + ('-' if g.chord else '') + g.chord for g in res]
+        print([g.origin + ('-' if g.chord else '') + g.chord for g in res])
         if res not in results:
             results.append(res)
 

@@ -1,22 +1,20 @@
 import numpy as np
+import pickle
 import random as rd
 from similar_sections import ss
 import data, analyze, sys, time
 
-class SegmentationTree(object):
-    def __init__(self):
-        self.label = label
-
 def fetch_classifier():
+    filename = '.cached/classifier.pkl'
     try:
-        from sklearn.externals import joblib
-        c = joblib.load('cached/classifier.pkl')
+        with open(filename, 'rb') as f:
+            c = pickle.load(f)
     except Exception as e:
         print(e)
         print("Retraining classifier...")
-        from sklearn.externals import joblib
         c = analyze.train_classifier(analyze.generate())
-        joblib.dump(c, 'cached/classifier.pkl')
+        with open(filename, 'wb') as f:
+            pickle.dump(c, f)
     return c
 
 class timer:
@@ -210,7 +208,7 @@ def segmentation(Piece, d, match, scoring_fn=default_scoring_fn, start=0, dur=-1
 
 if __name__ == '__main__':
     c = fetch_classifier()
-    musicpiece = data.piece(sys.argv[1])
+    musicpiece = data.Piece(sys.argv[1])
 
     if len(sys.argv) == 5: # midi-file, min_bars, start_bar_index, end_bar_index
         musicpiece = musicpiece.segment_by_bars(int(sys.argv[3]), int(sys.argv[4]))
