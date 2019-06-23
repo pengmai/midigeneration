@@ -4,7 +4,7 @@ import os
 import random
 
 from data import Piece
-from models import Markov, HiddenMarkov, NoteState, SegmentState
+from models import Markov, HiddenMarkov, NoteState
 
 def generate_score(midi_file):
     '''(str) -> NoneType
