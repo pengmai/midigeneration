@@ -13,7 +13,7 @@ def insert_albums(album_name='albums.yaml'):
         for song in album['songs']:
             songname = song['name']
             print(f'Training model from {songname}')
-            m = Model(song, album, train=True, pickle=True)
+            m = Model.from_album(song, album, train=True, pickle=True)
             m.insert_into_db(db)
     print('Complete.')
 

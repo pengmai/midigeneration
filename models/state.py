@@ -73,8 +73,6 @@ class NoteState(State):
     - origin: midi filename
 
     '''
-    counter = 1
-    cache = {}
 
     def __init__(self, notes, bar, chord='', origin='', bar_number=0):
         # State holds multiple notes, all with the same pos
@@ -90,12 +88,6 @@ class NoteState(State):
         for n in self.notes:
             n.dur = fixed(n.dur) / bar
 
-        if self in NoteState.cache:
-            self.state_id = NoteState.cache[self]
-        else:
-            NoteState.cache[self] = self.state_id = NoteState.counter
-            NoteState.counter += 1
-
     def state_data(self):
         ''' make hashable version of state information intended to be hashed '''
         notes_info = [n.pitch for n in self.notes]
@@ -110,9 +102,6 @@ class NoteState(State):
         s.bar_pos = self.bar_pos
         s.state_position = self.state_position
         s.state_duration = self.state_duration
-        # if s not in NoteState.cache:
-        #     print(self in NoteState.cache, s in NoteState.cache)
-        # s.state_id = self.state_id
         return s
 
     def transpose(self, offset):
@@ -246,4 +235,7 @@ class NoteState(State):
 
     def __repr__(self):
         # return f'NoteState(notes={self.notes}, bar={self.bar}, chord=\'{self.chord}\', origin=\'{self.origin}\', bar_number={self.bar_number})'
-        return f'NoteState({self.state_id})'
+        notes_info = [n.pitch for n in self.notes]
+        quantized_pos = self.bar_pos.quantize(fixed('0.01'), rounding=ROUND_HALF_DOWN)
+        quantized_dur = self.state_duration.quantize(fixed('0.0001'), rounding=ROUND_HALF_DOWN)
+        return f'"NoteState({notes_info}, {quantized_pos}, {quantized_dur})"'

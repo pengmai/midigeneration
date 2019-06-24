@@ -1,7 +1,6 @@
 import argparse
 import midi
 import os
-import random
 
 from data import Piece
 from models import Markov, HiddenMarkov, NoteState
@@ -25,7 +24,6 @@ def collect_all_midis(directory):
     return pieces
 
 if __name__ == '__main__':
-    random.seed(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', help='The name of the midi file to use')
     parser.add_argument('-s', '--start', type=int, help='The bar to start from')

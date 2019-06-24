@@ -10,14 +10,14 @@ class Model:
     """
     A representation of a model for a single song as stored in the database.
     """
-    def __init__(self, song, album, train=False, pickle=False):
-        self.name = song['name']
-        self.midi_file = song['location']
-        self.artist = album['artist'] if 'artist' in album else None
-        self.album = album['name'] if 'name' in album else None
-        self.year = album['year'] if 'year' in album else None
+    def __init__(self, name, location, train=False, pickle=False):
+        self.name = name
+        self.midi_file = location
+        self.artist = None
+        self.album = None
+        self.year = None
+        self.tags = []
         self.location = '.cached/model-' + hashlib.sha256(self.midi_file.encode()).hexdigest()
-        self.tags = get_tags(album, song)
 
         self.hmm = HiddenMarkov()
         self.mm = Markov()
@@ -27,12 +27,21 @@ class Model:
         self.bpm = self.piece.tracks[0].bpm
 
         if os.path.exists(self.location):
-            print('Cached model found, skipping training')
+            print('Cached model found, skipping training/serialization')
             return
         if train:
             self.train()
         if pickle:
             self.save_to_disk()
+
+    @staticmethod
+    def from_album(song, album, train=False, pickle=False):
+        m = Model(song['name'], song['location'], train=train, pickle=pickle)
+        m.artist = album['artist'] if 'artist' in album else None
+        m.album = album['name'] if 'name' in album else None
+        m.year = album['year'] if 'year' in album else None
+        m.tags = get_tags(album, song)
+        return m
 
     def train(self):
         key_sig, state_chain, all_bars, obs = NoteState.piece_to_state_chain(self.piece)
@@ -48,8 +57,7 @@ class Model:
         song = [self.piece.meta] + [[ n.note_event() for n in notes ]]
         if save:
             midi.write(output, song)
-        else:
-            return song
+        return hidden_chain, state_chain
 
     def add_model(self, other):
         """
