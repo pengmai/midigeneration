@@ -23,13 +23,13 @@ class analysis(object):
 
     def fetch_preprocessed(self, c, b0, b1):
         noext = basename(self.musicpiece.filename)
-        filename = 'cached/preprocessed-{}-{}-{}.pkl'.format(noext, b0, b1)
+        filename = '.cached/preprocessed-{}-{}-{}.pkl'.format(noext, b0, b1)
         try:
             f = open(filename, 'r')
             self.d, self.match = pickle.load(f)
-            print 'Found previously preprocessed data; using that to reduce computation time'
-        except Exception, e:
-            print 'Previously preprocessed data not found. Computing them...'
+            print('Found previously preprocessed data; using that to reduce computation time')
+        except Exception:
+            print('Previously preprocessed data not found. Computing them...')
             _, self.d, self.match = patterns.preprocess_segments(self.musicpiece, c)
             save = (self.d, self.match)
             f = open(filename, 'w')
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     c = patterns.fetch_classifier()
 
     def get_patterns(filename, b0, b1):
-        musicpiece = data.piece(filename)
+        musicpiece = data.Piece(filename)
         a = analysis(musicpiece, c, b0, b1)
         chosenscore, chosen, labelled_sections = a.chosenscore, a.chosen, a.labelled_sections
         a.chosenlabels = [(b, labelled_sections[b]) for b in chosen]

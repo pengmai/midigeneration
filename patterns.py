@@ -1,22 +1,20 @@
 import numpy as np
+import pickle
 import random as rd
 from similar_sections import ss
 import data, analyze, sys, time
 
-class SegmentationTree(object):
-    def __init__(self):
-        self.label = label
-
 def fetch_classifier():
+    filename = '.cached/classifier.pkl'
     try:
-        from sklearn.externals import joblib
-        c = joblib.load('cached/classifier.pkl')
-    except Exception, e:
-        print e
-        print "Retraining classifier..."
-        from sklearn.externals import joblib
+        with open(filename, 'rb') as f:
+            c = pickle.load(f)
+    except Exception as e:
+        print(e)
+        print("Retraining classifier...")
         c = analyze.train_classifier(analyze.generate())
-        joblib.dump(c, 'cached/classifier.pkl')
+        with open(filename, 'wb') as f:
+            pickle.dump(c, f)
     return c
 
 class timer:
@@ -29,7 +27,7 @@ class timer:
     def __exit__(self, type, value, traceback):
         self.end_time = time.time()
         elapsed = int(self.end_time - self.start_time)
-        print self.print_string, '<time taken: {}m {}s>'.format(elapsed / 60, elapsed % 60)
+        print(self.print_string, '<time taken: {}m {}s>'.format(elapsed / 60, elapsed % 60))
 
 def preprocess_segments(Piece, c):
     segs = {}
@@ -39,7 +37,7 @@ def preprocess_segments(Piece, c):
         # k is the size of the interval to use, in bars. We incrementally analyze the
         # similarity of each interval to its downstream neighbour
         for k in range(1, Piece.num_bars + 1):
-            print "Preprocess Segments: Part 1/2; Part {}/{}".format(k, Piece.num_bars)
+            print("Preprocess Segments: Part 1/2; Part {}/{}".format(k, Piece.num_bars))
 
             segs = {}
             # split the piece into intervals of size k bars each
@@ -210,7 +208,7 @@ def segmentation(Piece, d, match, scoring_fn=default_scoring_fn, start=0, dur=-1
 
 if __name__ == '__main__':
     c = fetch_classifier()
-    musicpiece = data.piece(sys.argv[1])
+    musicpiece = data.Piece(sys.argv[1])
 
     if len(sys.argv) == 5: # midi-file, min_bars, start_bar_index, end_bar_index
         musicpiece = musicpiece.segment_by_bars(int(sys.argv[3]), int(sys.argv[4]))
@@ -223,10 +221,10 @@ if __name__ == '__main__':
             two = musicpiece.segment_by_bars(b10, b11)
             features = [one.compare_with(two)]
             similarity_score = c.predict_proba(features)[0][1] # get similarity_score
-            print "SIMPROB:", similarity_score
+            print("SIMPROB:", similarity_score)
             headers = [ 'Feature' + str(i) for i in range(len(features[0])) ]
             features.insert(0, headers)
             from tabulate import tabulate
-            print "FEATURES:\n", tabulate(features)
+            print("FEATURES:\n", tabulate(features))
 
         compare_bars(musicpiece, c, b00, b01, b10, b11)

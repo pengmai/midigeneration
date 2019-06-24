@@ -1,0 +1,47 @@
+- name: Sonic Advance 2 OST
+  artist: Tatsuyuki Maeda, Yutaka Minobe, & Teruhika Nakagawa
+  year: 2002
+  songs:
+    - name: Egg Utopia
+      location: ./mid/Sonic/Egg Utopia.mid
+    - name: Forest
+      location: ./mid/Sonic/Forest.mid
+      #- name: Hot Crater
+      #location: ./mid/Sonic/Hot Crater.mid
+    - name: Ice Paradise
+      location: ./mid/Sonic/Ice Paradise.mid
+    - name: Music Plant
+      location: ./mid/Sonic/Music Plant.mid
+    - name: Sky Canyon
+      location: ./mid/Sonic/Sky Canyon.mid
+  tags:
+    - Soundtrack
+    - Video Game
+    - Sonic
+- name: Undertale OST
+  artist: Toby Fox
+  year: 2015
+  songs:
+    - name: Asgore
+      location: ./mid/Undertale/Asgore.mid
+    - name: Bonetrousle
+      location: ./mid/Undertale/Bonetrousle.mid
+    - name: Death by Glamour
+      location: ./mid/Undertale/Death by Glamour.mid
+    - name: Heartache
+      location: ./mid/Undertale/Heartache.mid
+    - name: His Theme
+      location: ./mid/Undertale/His Theme.mid
+    - name: Hopes and Dreams/Save the World
+      location: ./mid/Undertale/Hopes and Dreams:Save the World.mid
+    - name: Megalovania
+      location: ./mid/Undertale/Megalovania.mid
+    - name: sans.
+      location: ./mid/Undertale/sans.mid
+    - name: Spear of Justice
+      location: ./mid/Undertale/Spear of Justice.mid
+    - name: Spider Dance
+      location: ./mid/Undertale/Spider Dance.mid
+  tags:
+    - Soundtrack
+    - Video Game

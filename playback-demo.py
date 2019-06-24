@@ -23,7 +23,7 @@ def main():
         # read/poll the trigger file
         text = playback.read_trigger_file('trigger_file')
         if text:
-            print 'read triggerfile:', text
+            print('read triggerfile:', text)
             piece_index = (piece_index + 1) % 2 # switch pieces
 
         cur_time = time.clock()

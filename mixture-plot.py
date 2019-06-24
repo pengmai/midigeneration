@@ -12,7 +12,7 @@ def mixture(chord_transitions, sc2):
     fig = figure()
     x.shape = 1, len(x)
     axprops = dict(xticks=[], yticks=[])
-    barprops = dict(aspect='auto', cmap=cm.binary, interpolation='bicubic')
+    barprops = dict(aspect='auto', cmap=cm.get_cmap('binary'), interpolation='bicubic')
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.1], **axprops)
     ax.imshow(x, **barprops)
     show()

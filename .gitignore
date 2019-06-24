@@ -1,4 +1,5 @@
 *.pyc
 *.sw*
 *.DS_Store
-cached/*
+.vscode/
+.cached/
