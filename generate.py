@@ -1,5 +1,5 @@
 import argparse
-import midi
+import midi_io
 import os
 
 from data import Piece
@@ -59,4 +59,4 @@ if __name__ == '__main__':
     print(f'bar number: {hmm.temporary_bar_counter}')
     print(f'klist succeeded: {hmm.temporary_klist_counter} times')
     print(f'regen_success: {hmm.regen_success_counter}')
-    midi.write(args.output or 'generated/output_hmm.mid', song)
+    midi_io.write(args.output or 'generated/output_hmm.mid', song)

@@ -1,5 +1,5 @@
 # Functions needed for recommender tool
-import data, midi, patterns, cmm
+import data, midi_io, patterns, cmm
 import os, cPickle, glob
 from decimal import Decimal as fixed
 from decimal import ROUND_HALF_DOWN
@@ -282,7 +282,7 @@ def recommend(piece1, style, training, typ, num_recs=4, piece2=None):
     song = [piece1.meta]
     song.append([n.note_event() for n in music])
 
-    midi.write('rec.mid', song)
+    midi_io.write('rec.mid', song)
     #cmm.generate_score('rec.mid')
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import hashlib
 import os
 import pickle
-import midi
+import midi_io
 
 from data import Piece
 from models import Markov, HiddenMarkov, NoteState
@@ -56,7 +56,7 @@ class Model:
         notes = NoteState.state_chain_to_notes(state_chain, self.piece.bar)
         song = [self.piece.meta] + [[ n.note_event() for n in notes ]]
         if save:
-            midi.write(output, song)
+            midi_io.write(output, song)
         return hidden_chain, state_chain
 
     def add_model(self, other):

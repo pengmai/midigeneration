@@ -1,7 +1,7 @@
 # Markov Model thingy
 import argparse
 import random, glob
-import midi, experiments, patterns, chords
+import midi_io, experiments, patterns, chords
 from data import Piece
 from models import NoteState, SegmentState
 import pickle
@@ -298,7 +298,7 @@ def generate_output(args):
 
         song, gen, a = generate_song(mm, musicpiece.meta, musicpiece.bar, segmentation)
 
-    midi.write('output.mid', song)
+    midi_io.write('output.mid', song)
 
 
 def generate_score(file):
