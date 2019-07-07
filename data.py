@@ -1,4 +1,4 @@
-import midi, sys, getopt
+import midi_io, sys, getopt
 from decimal import Decimal as fixed
 
 def edit_distance(s1, s2):
@@ -191,7 +191,7 @@ class Piece:
     def __init__(self, filename_or_midi, filename=None, pos_offset=0):
         if isinstance(filename_or_midi, str):
             self.filename = filename_or_midi
-            self.midi = midi.read(filename_or_midi)
+            self.midi = midi_io.read(filename_or_midi)
 
             if self.midi == -1:
                 raise Exception("ERROR: Failed reading {}".format(filename_or_midi))

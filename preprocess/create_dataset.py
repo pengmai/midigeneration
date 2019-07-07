@@ -4,7 +4,9 @@ from magenta.pipelines import pipeline
 from magenta.pipelines import pipelines_common
 from magenta.protobuf import music_pb2
 
+import itertools
 import magenta
+import numpy as np
 import tensorflow as tf
 
 STEPS_PER_SECOND = 100 # TODO: Figure out how to properly set this.
@@ -28,25 +30,43 @@ class OneHotEncoderPipeline(pipeline.Pipeline):
         return [self.encoder_decoder.encode(performance)]
 
 class PerformanceExtractor(pipeline.Pipeline):
-  """Extracts polyphonic tracks from a quantized NoteSequence."""
-  def __init__(self, name, num_velocity_bins=0,
-               note_performance=False):
-    super(PerformanceExtractor, self).__init__(
-        input_type=music_pb2.NoteSequence,
-        output_type=magenta.music.performance_lib.BasePerformance,
-        name=name)
-    self._num_velocity_bins = num_velocity_bins
-    self._note_performance = note_performance
+    """Extracts polyphonic tracks from a quantized NoteSequence."""
+    def __init__(self, name, num_velocity_bins=0,
+                 note_performance=False):
+        super(PerformanceExtractor, self).__init__(
+            input_type=music_pb2.NoteSequence,
+            output_type=magenta.music.performance_lib.BasePerformance,
+            name=name)
+        self._num_velocity_bins = num_velocity_bins
+        self._note_performance = note_performance
 
-  def transform(self, quantized_sequence):
-    performances, stats = magenta.music.extract_performances(
-        quantized_sequence,
-        num_velocity_bins=self._num_velocity_bins,
-        note_performance=self._note_performance)
-    self._set_stats(stats)
-    return performances
+    def transform(self, quantized_sequence):
+        performances, stats = magenta.music.extract_performances(
+            quantized_sequence,
+            num_velocity_bins=self._num_velocity_bins,
+            note_performance=self._note_performance)
+        self._set_stats(stats)
+        return performances
 
-def get_pipeline(eval_ratio=0.1):
+def pipeline_list_to_dict(lst):
+    def pairwise(iterable):
+        """Returns an iterator over every pair of elements in iterable."""
+        a, b = itertools.tee(iterable)
+        next(b, None)
+        return zip(a, b)
+
+    dag = {}
+    for first, second in pairwise(lst):
+        dag[second] = first
+    return dag
+
+def get_pipeline(eval_ratio=0.0):
+    # Stretch by -5%, -2.5%, 0%, 2.5%, and 5%.
+    stretch_factors = [0.95, 0.975, 1, 1.025, 1.05]
+
+    # Transpose up and down a major third.
+    transposition_range = range(-3, 4)
+
     partitioner = pipelines_common.RandomPartition(
         music_pb2.NoteSequence,
         ['eval_performances', 'train_performances'],
@@ -56,8 +76,13 @@ def get_pipeline(eval_ratio=0.1):
     for mode in ['eval', 'train']:
         sustain_pipeline = note_sequence_pipelines.SustainPipeline(
             'SustainPipeline_' + mode)
+        stretch_pipeline = note_sequence_pipelines.StretchPipeline(
+            stretch_factors,
+            name='StretchPipeline_' + mode)
         quantizer = note_sequence_pipelines.Quantizer(
             steps_per_second=STEPS_PER_SECOND, name='Quantizer_' + mode)
+        transposition_pipeline = note_sequence_pipelines.TranspositionPipeline(
+            transposition_range, name='TranspositionPipeline_' + mode)
         perf_extractor = PerformanceExtractor(
             'PerformanceExtractor_' + mode,
             num_velocity_bins=NUM_VELOCITY_BINS)
@@ -65,13 +90,27 @@ def get_pipeline(eval_ratio=0.1):
             'EncoderPipeline_' + mode,
             num_velocity_bins=NUM_VELOCITY_BINS)
 
-        dag[sustain_pipeline] = partitioner[mode + '_performances']
-        dag[quantizer] = sustain_pipeline
-        dag[perf_extractor] = quantizer
-        dag[encoder_pipeline] = perf_extractor
-        dag[dag_pipeline.DagOutput(mode + '_performances')] = encoder_pipeline
+        pipelines = [
+            sustain_pipeline,
+            # stretch_pipeline,
+            quantizer,
+            # transposition_pipeline,
+            perf_extractor,
+            encoder_pipeline,
+            dag_pipeline.DagOutput(mode + '_performances')
+        ]
+        dag[pipelines[0]] = partitioner[mode + '_performances']
+        dag.update(pipeline_list_to_dict(pipelines))
 
     return dag_pipeline.DAGPipeline(dag)
+
+def sequence_example_to_arrays(sequence):
+    input_values = [int(feat.float_list.value[0]) for feat in sequence.feature_lists.feature_list['inputs'].feature]
+    X = np.zeros((len(input_values), 388))
+    X[np.arange(len(input_values)), input_values] = 1
+    y = [feat.int64_list.value[0] for feat in sequence.feature_lists.feature_list['labels'].feature]
+    # TODO: Rethink if this can be stored to a dictionary
+    return [X, y]
 
 def sequence_example_to_midi_file(sequence, outfile='sequence-out.mid'):
     """
@@ -85,19 +124,32 @@ def sequence_example_to_midi_file(sequence, outfile='sequence-out.mid'):
         The name of the MIDI file to write to.
     """
 
-    values = [int(feat.float_list.value[0]) for feat in seq.feature_lists.feature_list['inputs'].feature]
+    values = [int(feat.float_list.value[0]) for feat in sequence.feature_lists.feature_list['inputs'].feature]
+    encoded_vals_to_midi_file(values, outfile=outfile)
+
+def encoded_vals_to_midi_file(values, outfile='sequence-out.mid'):
     decoder = magenta.music.PerformanceOneHotEncoding(NUM_VELOCITY_BINS)
     performance = magenta.music.Performance(
-        steps_per_second=120,
+        steps_per_second=100,
         num_velocity_bins=NUM_VELOCITY_BINS)
     for val in values:
         performance.append(decoder.decode_event(val))
     note_sequence = performance.to_sequence()
     magenta.music.sequence_proto_to_midi_file(note_sequence, outfile)
 
-if __name__ == '__main__':
+def run_pipeline(tfrecord_file):
     processed = pipeline.load_pipeline(
         get_pipeline(),
-        pipeline.tf_record_iterator('take2.tfrecord', music_pb2.NoteSequence))
-    seq = processed['train_performances'][0]
-    sequence_example_to_midi_file(seq, 'magenta-out.mid')
+        pipeline.tf_record_iterator(tfrecord_file, music_pb2.NoteSequence))
+
+    # values = [int(feat.float_list.value[0]) for feat in processed['train_performances'][0].feature_lists.feature_list['inputs'].feature]
+    # values = np.array(values)
+    for i, perf in enumerate(processed['train_performances']):
+        sequence_example_to_midi_file(perf, f'Undertale Dataset/performance-{i}.mid')
+    return processed
+    # np.save('unravel.npy', values)
+    # return values
+    # train = [sequence_example_to_arrays(s) for s in processed['train_performances']]
+    # test = [sequence_example_to_arrays(s) for s in processed['eval_performances']]
+    # return train, test
+    # sequence_example_to_midi_file(seq, 'magenta-out.mid')
