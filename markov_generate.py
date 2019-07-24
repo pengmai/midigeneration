@@ -32,8 +32,8 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--context', type=int, help='The context length used in the Markov models')
     args = parser.parse_args()
 
-    pieces = [args.input or "./mid/Bach/bwv803.mid"]
-    # pieces = collect_all_midis('./mid/Bach')
+    # pieces = [args.input or "./mid/Bach/bwv803.mid"]
+    pieces = collect_all_midis('./Undertale Dataset/Merged MIDI')
     print(f'Generating from {pieces} with context length {args.context or 1}')
 
     hmm = HiddenMarkov(chain_length=args.context or 1)
@@ -59,4 +59,4 @@ if __name__ == '__main__':
     print(f'bar number: {hmm.temporary_bar_counter}')
     print(f'klist succeeded: {hmm.temporary_klist_counter} times')
     print(f'regen_success: {hmm.regen_success_counter}')
-    midi_io.write(args.output or 'generated/output_hmm.mid', song)
+    midi_io.write(args.output or 'output/output_hmm.mid', song)

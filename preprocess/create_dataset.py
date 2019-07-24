@@ -51,9 +51,9 @@ class PerformanceExtractor(pipeline.Pipeline):
 def pipeline_list_to_dict(lst):
     def pairwise(iterable):
         """Returns an iterator over every pair of elements in iterable."""
-        a, b = itertools.tee(iterable)
-        next(b, None)
-        return zip(a, b)
+        first, second = itertools.tee(iterable)
+        next(second, None)
+        return zip(first, second)
 
     dag = {}
     for first, second in pairwise(lst):
@@ -79,6 +79,9 @@ def get_pipeline(eval_ratio=0.0):
         stretch_pipeline = note_sequence_pipelines.StretchPipeline(
             stretch_factors,
             name='StretchPipeline_' + mode)
+        splitter = note_sequence_pipelines.Splitter(
+            hop_size_seconds=30.0,
+            name='Splitter_' + mode)
         quantizer = note_sequence_pipelines.Quantizer(
             steps_per_second=STEPS_PER_SECOND, name='Quantizer_' + mode)
         transposition_pipeline = note_sequence_pipelines.TranspositionPipeline(
@@ -92,9 +95,10 @@ def get_pipeline(eval_ratio=0.0):
 
         pipelines = [
             sustain_pipeline,
-            # stretch_pipeline,
+            stretch_pipeline,
+            # splitter,
             quantizer,
-            # transposition_pipeline,
+            transposition_pipeline,
             perf_extractor,
             encoder_pipeline,
             dag_pipeline.DagOutput(mode + '_performances')
@@ -103,14 +107,6 @@ def get_pipeline(eval_ratio=0.0):
         dag.update(pipeline_list_to_dict(pipelines))
 
     return dag_pipeline.DAGPipeline(dag)
-
-def sequence_example_to_arrays(sequence):
-    input_values = [int(feat.float_list.value[0]) for feat in sequence.feature_lists.feature_list['inputs'].feature]
-    X = np.zeros((len(input_values), 388))
-    X[np.arange(len(input_values)), input_values] = 1
-    y = [feat.int64_list.value[0] for feat in sequence.feature_lists.feature_list['labels'].feature]
-    # TODO: Rethink if this can be stored to a dictionary
-    return [X, y]
 
 def sequence_example_to_midi_file(sequence, outfile='sequence-out.mid'):
     """
@@ -142,14 +138,6 @@ def run_pipeline(tfrecord_file):
         get_pipeline(),
         pipeline.tf_record_iterator(tfrecord_file, music_pb2.NoteSequence))
 
-    # values = [int(feat.float_list.value[0]) for feat in processed['train_performances'][0].feature_lists.feature_list['inputs'].feature]
-    # values = np.array(values)
     for i, perf in enumerate(processed['train_performances']):
         sequence_example_to_midi_file(perf, f'Undertale Dataset/performance-{i}.mid')
     return processed
-    # np.save('unravel.npy', values)
-    # return values
-    # train = [sequence_example_to_arrays(s) for s in processed['train_performances']]
-    # test = [sequence_example_to_arrays(s) for s in processed['eval_performances']]
-    # return train, test
-    # sequence_example_to_midi_file(seq, 'magenta-out.mid')
