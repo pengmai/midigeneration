@@ -12,6 +12,7 @@ from models.noam_opt import get_standard_optimizer
 from models.transformer import TransformerDecoder, device
 from models.attr_dict import default_config
 
+
 class PerformanceDataset(Dataset):
     def __init__(self, location, max_len=None):
         self.performances = np.load(location, allow_pickle=True)
@@ -29,23 +30,29 @@ class PerformanceDataset(Dataset):
                   'target': torch.from_numpy(performance[1:]).to(device)}
         return sample
 
+
 model = TransformerDecoder(default_config)
 criterion = nn.CrossEntropyLoss()
 # criterion = LabelSmoothing(size=VOCAB_SIZE, padding_idx=0, smoothing=0.1)
 optimizer = get_standard_optimizer(model, default_config['hidden_size'])
+
 
 def save_model(path):
     torch.save({'model_state': model.state_dict(),
                 'model_optimizer_state': optimizer.state_dict()},
                path)
 
+
 def load_model(path):
     state = torch.load(path, map_location='cpu')
     model.load_state_dict(state['model_state'])
     optimizer.load_state_dict(state['model_optimizer_state'])
 
-dataset = PerformanceDataset('datasets/maestro2018-truncated-1024.npy', max_len=50)
+
+dataset = PerformanceDataset(
+    'datasets/maestro2018-truncated-1024.npy', max_len=50)
 dataloader = DataLoader(dataset, batch_size=5, shuffle=True)
+
 
 def train(start=0, num_epochs=1, save_every=1):
     print('Beginning training')
@@ -53,22 +60,26 @@ def train(start=0, num_epochs=1, save_every=1):
     try:
         for epoch in tqdm(range(start + 1, start + num_epochs + 1), desc='Training'):
             losses = []
-            for batch in tqdm(dataloader, desc=f'epoch {epoch}', leave=False):
-                out, _ = model(batch['sequence'])
-                out_flatten = out.view(-1, out.size(2))
-                targets_flatten = batch['target'].contiguous().view(-1)
-                loss = criterion(out_flatten, targets_flatten)
-                losses.append(loss.item())
+            with tqdm(dataloader, desc=f'Epoch {epoch}', leave=False) as t:
+                for batch in t:
+                    out, _ = model(batch['sequence'])
+                    out_flatten = out.view(-1, out.size(2))
+                    targets_flatten = batch['target'].contiguous().view(-1)
+                    loss = criterion(out_flatten, targets_flatten)
+                    losses.append(loss.item())
+                    t.set_postfix(batch_loss=loss.item())
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
             tqdm.write(f'Training - Iter: {epoch} loss: {np.mean(losses)}')
             if epoch % save_every == 0:
                 save_model(f'transformer-{epoch}.sess')
     except Exception:
         save_model(f'interrupted-transformer-{epoch}.sess')
+        print('Interrupted, saved model at epoch {epoch}')
+
 
 def generate(checkpoint, steps, filename='nmt-test.mid'):
     load_model(checkpoint)
@@ -80,6 +91,7 @@ def generate(checkpoint, steps, filename='nmt-test.mid'):
     from preprocess.create_dataset import encoded_vals_to_midi_file
     encoded_vals_to_midi_file(generated, filename)
 
+
 if __name__ == '__main__':
-    # train(num_epochs=1, save_every=1)
-    generate('relative transformer 10.sess', 100)
+    train(num_epochs=1, save_every=10)  # IMPORTANT: This won't save the model
+    # generate('relative transformer 10.sess', 100)
