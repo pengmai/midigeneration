@@ -96,7 +96,7 @@ class AbsoluteTransformerDecoder(nn.Module):
         self_attention_weights = torch.stack(self_attention_weights_list)
         return output, self_attention_weights
 
-    def generate(self, primer=torch.LongTensor([[355]]), steps=500, verbose=True):
+    def generate(self, primer, steps=500, verbose=True):
         """
         Generates a sequence of steps length from the given primer.
         """
@@ -113,18 +113,73 @@ class AbsoluteTransformerDecoder(nn.Module):
             outputs = torch.cat((outputs, next_word), dim=1)
         return outputs.cpu().numpy()[0]
 
-    def generate_random(self, primer=torch.LongTensor([[355]]), steps=500):
-      """Like generate, but randomly samples from the softmax distribution."""
-      def sample(softmax):
-          return torch.nonzero(softmax.cumsum(dim=0) > np.random.sample())[0][0]
+    def beam_search(self, primer, beam_width, steps=500, verbose=True):
+        """Generate a sequence using beam search."""
+        assert self.vocab_size >= beam_width
 
-      outputs = primer.to(device)
-      for _ in tqdm(range(steps), desc='Sampling to decode'):
-        decoder_outputs, _ = self.forward(outputs)
-        activations = F.softmax(decoder_outputs[0, -1, :], dim=0)
-        next_word = sample(activations).view(1, 1)
-        outputs = torch.cat((outputs, next_word), dim=1)
-      return outputs.cpu().numpy()[0]
+        batch_size, primer_len = primer.shape[0]
+        # The saved top beam_width candidates
+        beam = torch.zeros(batch_size, beam_width, primer_len + steps).long().to(device)
+        beam[:, :, :primer_len] = primer.view(batch_size, 1, primer_len).repeat(1, beam_width, 1)
+        # Scores of the top beam_width candidates
+        score = torch.zeros(batch_size, beam_width).to(device)
+
+        step_iter = range(primer_len, primer_len + steps)
+        if verbose:
+            step_iter = tqdm(step_iter)
+
+        for step in step_iter:
+            # (batch_size * beam_width, seq_len)
+            inputs = beam[:, :, step].view(-1, step)
+            output, _ = self.forward(inputs)
+            # (batch_size * beam_width, vocab_size)
+            output = F.log_softmax(output, dim=2)[:, -1, :]
+
+            # Consider only the top beam_width candidates for the next token.
+            # This is actually a deviation from the full beam search algorithm -
+            # traditional beam search would consider vocab_size * beam_width
+            # candidates.
+
+            # both top_v and top_i are (batch_size * beam_width, beam_width)
+            top_v, top_i = output.topk(beam_width, dim=-1)
+            top_v += score.view(batch_size * beam_width, 1)
+            # top_v and top_i are (batch_size, beam_width * beam_width)
+            top_v = top_v.view(batch_size, -1)
+            top_i = top_i.view(batch_size, -1)
+
+            # Find the best beam_width candidates overall
+            _, bbi = top_v.topk(beam_width, dim=-1)
+            # bbi is (batch_size, beam_width)
+            bbi = bbi.view(batch_size, -1)
+            bi = torch.arange(batch_size).view(batch_size, 1)
+            # Used to choose the original candidate that the new candidates came from
+            i = bbi / beam_width
+
+            # Update our running totals.
+            score = top_v[bi, bbi]
+            beam[:, :, :step] = beam[bi, i, :step]
+            event = top_i[bi, bbi]
+            beam[bi, torch.arange(beam_width), step] = event
+
+        best = beam[torch.arange(batch_size), score.argmax(-1)]
+        return best
+
+    def generate_random(self, primer, steps=500, verbose=True):
+        """Like generate, but randomly samples from the softmax distribution."""
+        def sample(softmax):
+            return torch.distributions.Categorical(softmax).sample()
+
+        range_iter = range(steps)
+        if verbose:
+            range_iter = tqdm(range_iter, desc='Sampling to decoding')
+
+        outputs = primer.to(device)
+        for _ in range_iter:
+            decoder_outputs, _ = self.forward(outputs)
+            activations = F.softmax(decoder_outputs[0, -1, :], dim=0)
+            next_word = sample(activations).view(1, 1)
+            outputs = torch.cat((outputs, next_word), dim=1)
+        return outputs.cpu().numpy()[0]
 
 
 class TransformerDecoder(nn.Module):
