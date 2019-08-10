@@ -57,11 +57,10 @@ class HiddenMarkov:
                 v = bar_markov.get(tuple(buf), [])
                 v.append(HiddenMarkov.STOP_TOKEN)
                 bar_markov[tuple(buf)] = v
-                '''
-                offset = get_key_offset(key_sig[0], 'C')   # transpose everything to C major
-                shifted_bar_chain = [s.transpose(offset) for s in state_chain]
-                bar_chains.append(shifted_bar_chain)
-                '''
+
+                # offset = get_key_offset(key_sig[0], 'C')   # transpose everything to C major
+                # shifted_bar_chain = [s.transpose(offset) for s in state_chain]
+                # bar_chains.append(shifted_bar_chain)
                 '''
                 for i in range(1, 6):
                     shifted_bar_chain = [ s.transpose(i) for s in state_chain ]

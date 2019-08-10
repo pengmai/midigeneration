@@ -62,7 +62,8 @@ def pipeline_list_to_dict(lst):
 
 def get_pipeline(eval_ratio=0.0):
     # Stretch by -5%, -2.5%, 0%, 2.5%, and 5%.
-    stretch_factors = [0.95, 0.975, 1, 1.025, 1.05]
+    # stretch_factors = [0.95, 0.975, 1, 1.025, 1.05]
+    stretch_factors = [0.975, 1, 1.025]
 
     # Transpose up and down a major third.
     transposition_range = range(-3, 4)
@@ -93,12 +94,13 @@ def get_pipeline(eval_ratio=0.0):
             'EncoderPipeline_' + mode,
             num_velocity_bins=NUM_VELOCITY_BINS)
 
+        # These pipelines can be commented/uncommented to turn them on and off.
         pipelines = [
             sustain_pipeline,
-            stretch_pipeline,
+            # stretch_pipeline,
             # splitter,
             quantizer,
-            transposition_pipeline,
+            # transposition_pipeline,
             perf_extractor,
             encoder_pipeline,
             dag_pipeline.DagOutput(mode + '_performances')

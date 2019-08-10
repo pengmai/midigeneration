@@ -1,3 +1,5 @@
+"""Script to populate the database with albums"""
+
 import records
 import yaml
 

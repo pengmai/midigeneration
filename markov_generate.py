@@ -5,6 +5,7 @@ import os
 from data import Piece
 from models import Markov, HiddenMarkov, NoteState
 
+
 def generate_score(midi_file):
     '''(str) -> NoneType
     Generate the score (.xml) for the auto-generated midi file.
@@ -14,7 +15,9 @@ def generate_score(midi_file):
     midi_file_output = music21.converter.parse(midi_file)
     midi_file_output.show()
 
+
 def collect_all_midis(directory):
+    """Return a list of filenames of all midi files inside directory."""
     pieces = []
     for dirpath, _, filenames in os.walk(directory):
         for filename in filenames:
@@ -23,17 +26,20 @@ def collect_all_midis(directory):
                 pieces.append(os.path.join(dirpath, filename))
     return pieces
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input', help='The name of the midi file to use')
+    parser.add_argument('-i', '--input', required=True, help='The name of the midi file to use')
     parser.add_argument('-s', '--start', type=int, help='The bar to start from')
     parser.add_argument('-e', '--end', type=int, help='The bar to end at')
     parser.add_argument('-o', '--output', help='The name of the generated file')
-    parser.add_argument('-c', '--context', type=int, help='The context length used in the Markov models')
+    parser.add_argument('-c', '--context', default=1, type=int, help='The context length used in the Markov models')
     args = parser.parse_args()
 
-    # pieces = [args.input or "./mid/Bach/bwv803.mid"]
-    pieces = collect_all_midis('./Undertale Dataset/Merged MIDI')
+    if args.input.endswith('.mid') or args.input.endswith('.midi'):
+        pieces = [args.input]
+    else:
+        pieces = collect_all_midis(args.input)
     print(f'Generating from {pieces} with context length {args.context or 1}')
 
     hmm = HiddenMarkov(chain_length=args.context or 1)

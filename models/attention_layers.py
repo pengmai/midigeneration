@@ -21,20 +21,15 @@ class RelativeMultiHeadAttention(nn.Module):
         self.Q = nn.Linear(self.hidden_size, self.hidden_size)
         self.K = nn.Linear(self.hidden_size, self.hidden_size)
         self.V = nn.Linear(self.hidden_size, self.hidden_size)
-        mean, std = 0, math.sqrt(2.0 / (self.hidden_size + self.head_width))
-        nn.init.normal_(self.Q.weight, mean=mean, std=std)
-        nn.init.normal_(self.K.weight, mean=mean, std=std)
-        nn.init.normal_(self.V.weight, mean=mean, std=std)
 
         self.attention = RelativeDotProductAttention(config)
         self.layer_norm = nn.LayerNorm(self.hidden_size)
 
         self.mlp = nn.Linear(self.hidden_size, self.hidden_size)
-        nn.init.xavier_normal_(self.mlp.weight)
 
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, q, k, v, rel_positions):
+    def forward(self, q, k, v, rel_positions, mask=None):
         """
         Forward pass of the multi-head attention mechanism.
 
@@ -79,7 +74,7 @@ class RelativeMultiHeadAttention(nn.Module):
         return output, attention
 
 
-def generate_relative_positions_matrix(self, length, max_relative_position):
+def generate_relative_positions_matrix(length, max_relative_position):
     range_vec = torch.arange(length)
     range_mat = range_vec.repeat(length).view(length, length)
     distance_mat = range_mat - range_mat.transpose(0, 1)
@@ -150,16 +145,11 @@ class MultiHeadAttention(nn.Module):
         self.Q = nn.Linear(self.hidden_size, self.hidden_size)
         self.K = nn.Linear(self.hidden_size, self.hidden_size)
         self.V = nn.Linear(self.hidden_size, self.hidden_size)
-        mean, std = 0, math.sqrt(2.0 / (self.hidden_size + self.head_width))
-        nn.init.normal_(self.Q.weight, mean=mean, std=std)
-        nn.init.normal_(self.K.weight, mean=mean, std=std)
-        nn.init.normal_(self.V.weight, mean=mean, std=std)
 
         self.attention = ScaledDotProductAttention(config)
         self.layer_norm = nn.LayerNorm(self.hidden_size)
 
         self.mlp = nn.Linear(self.hidden_size, self.hidden_size)
-        nn.init.xavier_normal_(self.mlp.weight)
 
         self.dropout = nn.Dropout(config.dropout)
 
@@ -232,8 +222,25 @@ class ScaledDotProductAttention(nn.Module):
         return output, attention
 
 
+class PositionwiseFeedForward(nn.Module):
+    """A two layer feed-forward network with residual connections."""
+
+    def __init__(self, config):
+        super(PositionwiseFeedForward, self).__init__()
+        self.w1 = nn.Linear(config.hidden_size, config.feed_forward_size)
+        self.w2 = nn.Linear(config.feed_forward_size, config.hidden_size)
+        self.layer_norm = nn.LayerNorm(config.hidden_size)
+        self.dropout = nn.Dropout(config.dropout)
+
+    def forward(self, x):
+        residual = x
+        output = self.w2(F.relu(self.w1(x)))
+        output = self.dropout(output)
+        return self.layer_norm(output + residual)
+
+
 class PositionalEncoding(nn.Module):
-    "Implement the PE function."
+    """Implement the PE function."""
 
     def __init__(self, d_model, dropout, max_len=5000):
         super(PositionalEncoding, self).__init__()
