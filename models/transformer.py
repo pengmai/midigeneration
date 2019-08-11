@@ -117,7 +117,7 @@ class AbsoluteTransformerDecoder(nn.Module):
         """Generate a sequence using beam search."""
         assert self.vocab_size >= beam_width
 
-        batch_size, primer_len = primer.shape[0]
+        batch_size, primer_len = primer.shape
         # The saved top beam_width candidates
         beam = torch.zeros(batch_size, beam_width, primer_len + steps).long().to(device)
         beam[:, :, :primer_len] = primer.view(batch_size, 1, primer_len).repeat(1, beam_width, 1)
@@ -130,7 +130,7 @@ class AbsoluteTransformerDecoder(nn.Module):
 
         for step in step_iter:
             # (batch_size * beam_width, seq_len)
-            inputs = beam[:, :, step].view(-1, step)
+            inputs = beam[:, :, :step].view(-1, step)
             output, _ = self.forward(inputs)
             # (batch_size * beam_width, vocab_size)
             output = F.log_softmax(output, dim=2)[:, -1, :]
