@@ -36,7 +36,7 @@ model = TransformerDecoder(music_config)
 criterion = nn.CrossEntropyLoss()
 # criterion = LabelSmoothing(size=VOCAB_SIZE, padding_idx=0, smoothing=0.1)
 # optimizer = get_standard_optimizer(model, music_config['hidden_size'])
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+optimizer = torch.optim.Adam(model.parameters(), lr=5e-4)
 
 
 def save_model(path):
