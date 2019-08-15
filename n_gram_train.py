@@ -8,7 +8,7 @@ from models.n_gram import NGramModel
 
 def main(args):
     """Trains and saves a new n-gram model."""
-    model = NGramModel(args.context, vocab_size=388)
+    model = NGramModel(args.context, vocab_size=240)
 
     data = np.load(args.input, allow_pickle=True)
     model.train(data)

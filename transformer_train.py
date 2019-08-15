@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from models.label_smoothing import LabelSmoothing
 from models.noam_opt import get_standard_optimizer
-from models.transformer import AbsoluteTransformerDecoder, device
+from models.transformer import TransformerDecoder, device
 from models.attr_dict import music_config
 
 
@@ -32,7 +32,7 @@ class PerformanceDataset(Dataset):
         return sample
 
 
-model = AbsoluteTransformerDecoder(music_config)
+model = TransformerDecoder(music_config)
 criterion = nn.CrossEntropyLoss()
 # criterion = LabelSmoothing(size=VOCAB_SIZE, padding_idx=0, smoothing=0.1)
 # optimizer = get_standard_optimizer(model, music_config['hidden_size'])
@@ -51,9 +51,10 @@ def load_model(path):
     # optimizer.load_state_dict(state['model_optimizer_state'])
 
 
-dataset = PerformanceDataset('datasets/unravel.npy', max_len=1024)
+# dataset = PerformanceDataset('datasets/unravel.npy', max_len=1024)
     #'datasets/maestro2018-truncated-1024.npy', max_len=50)
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+# dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+dataloader = []
 
 
 def train(start=0, num_epochs=1, save_every=1):
@@ -84,14 +85,15 @@ def train(start=0, num_epochs=1, save_every=1):
 
 
 def generate(checkpoint, steps, filename='nmt-test.mid'):
-    load_model(checkpoint)
+    # load_model(checkpoint)
     model.eval()
     print('Generating')
-    data = np.load('datasets/unravel.npy')[:50]
+    data = np.load('datasets/unravel.npy')[:5]
     data = torch.from_numpy(data).unsqueeze(0)
-    generated = model.generate(primer=data, steps=steps)[0]
-    from preprocess.create_dataset import encoded_vals_to_midi_file
-    encoded_vals_to_midi_file(generated, filename)
+    generated = model.beam_search(primer=data, beam_width=3, steps=steps)[0]
+    return generated
+    # from preprocess.create_dataset import encoded_vals_to_midi_file
+    # encoded_vals_to_midi_file(generated, filename)
 
 def log_likelihood(pieces):
     """
@@ -117,8 +119,16 @@ def log_likelihood(pieces):
     return torch.sum(probs, dim=1)
 
 if __name__ == '__main__':
-    piece = dataset[0]['sequence'].unsqueeze(0)
-    print(log_likelihood(piece))
+    load_model('curated_v4_tiny_200.sess')
+    model.eval()
+    x = torch.arange(20).unsqueeze(0)
+    full = model(x, return_attention=False)
+    step = model.forward_step(x)
+    print(full[0,-1, 0])
+    print(step[0, 0, 0])
+    # piece = dataset[0]['sequence'].unsqueeze(0)
+    # print(log_likelihood(piece))
+    # generate('', 10)
     # x = torch.arange(12).view(3, 4)
     # print(log_likelihood(x))
     # start = 40

@@ -44,6 +44,11 @@ class DecoderLayer(nn.Module):
 
         return contexts, attention_weights
 
+    def forward_step(self, inputs):
+        contexts = self.self_attn(inputs, inputs, inputs, only_last=True)
+        contexts = self.mlp(contexts)
+        return contexts
+
 
 class RelativeDecoderLayer(nn.Module):
     def __init__(self, config):
@@ -60,9 +65,9 @@ class RelativeDecoderLayer(nn.Module):
         return contexts, attention_weights
 
 
-class AbsoluteTransformerDecoder(nn.Module):
+class TransformerDecoder(nn.Module):
     def __init__(self, config):
-        super(AbsoluteTransformerDecoder, self).__init__()
+        super(TransformerDecoder, self).__init__()
         self.vocab_size = config.vocab_size
         self.hidden_size = config.hidden_size
         self.feed_forward_size = config.feed_forward_size
@@ -77,9 +82,8 @@ class AbsoluteTransformerDecoder(nn.Module):
 
         self.out = nn.Linear(self.hidden_size, self.vocab_size)
 
-    def forward(self, inputs):
+    def forward(self, inputs, return_attention=True):
         subsequent_mask = get_subsequent_mask(inputs)
-        batch_size, seq_len = inputs.size()
 
         # batch_size x seq_len x hidden_size
         embed = self.embedding(inputs)
@@ -89,12 +93,26 @@ class AbsoluteTransformerDecoder(nn.Module):
         contexts = embed
         for layer in self.layers:
             contexts, self_attention = layer(contexts, mask=subsequent_mask)
-            self_attention_weights_list.append(self_attention)
+            if return_attention:
+                self_attention_weights_list.append(self_attention)
 
         output = self.out(contexts)
 
-        self_attention_weights = torch.stack(self_attention_weights_list)
-        return output, self_attention_weights
+        if return_attention:
+            self_attention_weights = torch.stack(self_attention_weights_list)
+            return output, self_attention_weights
+        return output
+
+    def forward_step(self, inputs):
+        assert self.num_layers == 1
+        embed = self.embedding(inputs)
+        embed = self.position_enc(embed)
+
+        contexts = embed
+        for layer in self.layers:
+            contexts = layer.forward_step(contexts)
+        output = self.out(contexts)
+        return output
 
     def generate(self, primer, steps=500, verbose=True):
         """
@@ -182,9 +200,9 @@ class AbsoluteTransformerDecoder(nn.Module):
         return outputs.cpu().numpy()[0]
 
 
-class TransformerDecoder(nn.Module):
+class RelativeTransformerDecoder(nn.Module):
     def __init__(self, config):
-        super(TransformerDecoder, self).__init__()
+        super(RelativeTransformerDecoder, self).__init__()
         self.vocab_size = config.vocab_size
         self.hidden_size = config.hidden_size
         self.feed_forward_size = config.feed_forward_size

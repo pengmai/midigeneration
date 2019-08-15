@@ -3,13 +3,15 @@
 import argparse
 import pickle
 from models.n_gram import NGramModel
-from preprocess.create_dataset import encoded_vals_to_midi_file
+from preprocess.sequence import EventSeq
+# from preprocess.create_dataset import encoded_vals_to_midi_file
 
 def main(args):
     with open(args.input, 'rb') as f:
         model = pickle.load(f)
     output = model.generate(args.steps, verbose=True)
-    encoded_vals_to_midi_file(output, args.output)
+    # encoded_vals_to_midi_file(output, args.output)
+    EventSeq.from_array(output).to_note_seq().to_midi_file(args.output)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

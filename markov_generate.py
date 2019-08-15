@@ -27,15 +27,7 @@ def collect_all_midis(directory):
     return pieces
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--input', required=True, help='The name of the midi file to use')
-    parser.add_argument('-s', '--start', type=int, help='The bar to start from')
-    parser.add_argument('-e', '--end', type=int, help='The bar to end at')
-    parser.add_argument('-o', '--output', help='The name of the generated file')
-    parser.add_argument('-c', '--context', default=1, type=int, help='The context length used in the Markov models')
-    args = parser.parse_args()
-
+def main(args):
     if args.input.endswith('.mid') or args.input.endswith('.midi'):
         pieces = [args.input]
     else:
@@ -66,3 +58,14 @@ if __name__ == '__main__':
     print(f'klist succeeded: {hmm.temporary_klist_counter} times')
     print(f'regen_success: {hmm.regen_success_counter}')
     midi_io.write(args.output or 'output/output_hmm.mid', song)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input', required=True, help='The name of the midi file to use')
+    parser.add_argument('-s', '--start', type=int, help='The bar to start from')
+    parser.add_argument('-e', '--end', type=int, help='The bar to end at')
+    parser.add_argument('-o', '--output', help='The name of the generated file')
+    parser.add_argument('-c', '--context', default=1, type=int, help='The context length used in the Markov models')
+
+    main(parser.parse_args())

@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     chord_transitions = set()
     for i in range(1, len(sys.argv)-1):
-        piece1 = data.piece(sys.argv[i])
+        piece1 = data.Piece(sys.argv[i])
         sc_ = cmm.NoteState.piece_to_state_chain(piece1, use_chords=True)
         schords = [s.chord for s in sc_ ]
         schords2 = []
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         # assume chain length is 1
         chord_transitions = chord_transitions.union({(schords[i], schords[i+1]) for i in range(len(schords)-1)})
 
-    piece2 = data.piece(sys.argv[-1])
+    piece2 = data.Piece(sys.argv[-1])
 
     mixture(chord_transitions, piece2)
 

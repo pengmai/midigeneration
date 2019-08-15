@@ -17,8 +17,9 @@ _config = {
 }
 
 _music_config = {
-    'hidden_size': 128, # Originally 256
-    'feed_forward_size': 512, # Originally 1024
+    'vocab_size': 240,
+    'hidden_size': 64, # Originally 256
+    'feed_forward_size': 256, # Originally 1024
     'max_relative_position': 512
 }
 

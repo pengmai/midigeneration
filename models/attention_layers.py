@@ -83,6 +83,45 @@ def generate_relative_positions_matrix(length, max_relative_position):
                                        max_relative_position)
     return distance_mat_clipped + max_relative_position
 
+def rel_to_abs(x):
+    """
+    Helper for RelativeDotProductAttentionV2. Implements the "skew" procedure
+    outlined in the Music Transformer paper.
+    """
+    batch, heads, length, _ = x.shape
+    pad = torch.zeros(batch, heads, 1).type_as(x)
+    x = F.pad(x, (1, 0)).view(batch, heads, length + 1, length)
+    return x[:, :, 1:length + 1, :length]
+
+
+class RelativeDotProductAttentionV2(nn.Module):
+    def __init__(self, config):
+        super(RelativeDotProductAttentionV2, self).__init__()
+        self.max_relative_position = config.max_relative_position
+        head_width = config.hidden_size // config.num_heads
+        self.relations_keys = nn.Embedding(self.max_relative_position, head_width)
+        self.softmax = nn.Softmax(dim=3)
+        self.dropout = nn.Dropout(config.dropout)
+
+    def _get_rel_embeddings(self, embed, seq_len):
+        pad_len = max(seq_len - self.max_relative_position, 0)
+        start_slice = max(self.max_relative_position - seq_len, 0)
+        padded = F.pad(embed, (0, 0, pad_len, 0))
+        return padded[start_slice:, :]
+
+    def forward(self, q, k, v, mask=None):
+        logits = torch.einsum('bhqd,bhkd->bhqk', (q, k))
+        rel_keys = self._get_rel_embeddings(self.relations_keys.weight, q.shape[2])
+        rel_logits = torch.einsum('bhqd,md->bhqm', (q, rel_keys))
+        logits += rel_to_abs(rel_logits)
+        if mask is not None:
+            logits = logits.masked_fill(mask, -math.inf)
+
+        weights = self.softmax(logits)
+        dropped_weights = self.dropout(weights)
+        output = torch.matmul(weights, v)
+        return output, weights
+
 
 class RelativeDotProductAttention(nn.Module):
     def __init__(self, config):
@@ -93,7 +132,7 @@ class RelativeDotProductAttention(nn.Module):
         head_width = config.hidden_size // config.num_heads
         self.relations_keys = nn.Embedding(vocab_size, head_width)
         self.relations_vals = nn.Embedding(vocab_size, head_width)
-        self.softmax = nn.Softmax(dim=2)
+        self.softmax = nn.Softmax(dim=3)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, q, k, v, rel_positions, mask=None):
@@ -108,9 +147,12 @@ class RelativeDotProductAttention(nn.Module):
             The relative position matrix to use for the corresponding sequence.
         """
         _, _, seq_len, d_k = q.shape
+
+        # (seq_len, seq_len, head_width)
         rel_keys = self.relations_keys(rel_positions)
         rel_vals = self.relations_vals(rel_positions)
 
+        # (batch_size, num_heads, seq_len, seq_len)
         logits = self.relative_attention(q, k, rel_keys, transpose=True)
         if mask is not None:
             logits = logits.masked_fill(mask, -math.inf)
@@ -153,7 +195,7 @@ class MultiHeadAttention(nn.Module):
 
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, q, k, v, mask=None):
+    def forward(self, q, k, v, mask=None, only_last=False):
         """
         Forward pass of the multi-head attention mechanism.
 
@@ -171,20 +213,33 @@ class MultiHeadAttention(nn.Module):
         batch_size, seq_len, _ = q.size()
 
         # Split off the dimensions of q, k, & v into separate attention heads.
-        q = self.Q(q).view(batch_size, seq_len,
-                           self.num_heads, self.head_width)
+        if only_last:
+            q = self.Q(q[:, -1, :]).view(batch_size,
+                                         self.num_heads, self.head_width)
+        else:
+            q = self.Q(q).view(batch_size, seq_len,
+                               self.num_heads, self.head_width)
         k = self.K(k).view(batch_size, seq_len,
                            self.num_heads, self.head_width)
         v = self.V(v).view(batch_size, seq_len,
                            self.num_heads, self.head_width)
 
         # (batch_size x num_heads, seq_len, head_width)
-        q = q.permute(2, 0, 1, 3).contiguous(
-        ).view(-1, seq_len, self.head_width)
+        if only_last:
+            q = q.view(-1, self.head_width)
+        else:
+            q = q.permute(2, 0, 1, 3).contiguous(
+            ).view(-1, seq_len, self.head_width)
         k = k.permute(2, 0, 1, 3).contiguous(
         ).view(-1, seq_len, self.head_width)
         v = v.permute(2, 0, 1, 3).contiguous(
         ).view(-1, seq_len, self.head_width)
+
+        if only_last:
+            output = self.attention.forward_step(q, k, v)
+            output = self.mlp(output.view(batch_size, -1))
+            output = self.layer_norm(output + residual[:, -1, :])
+            return output
 
         # Create batch_size x num_heads identical masks.
         if mask is not None:
@@ -220,6 +275,26 @@ class ScaledDotProductAttention(nn.Module):
         attention = self.dropout(self.softmax(attention))
         output = torch.bmm(attention, v)
         return output, attention
+
+    def forward_step(self, q, k, v):
+        """
+        Compute attention for the last token without computing other attentions.
+        Used for beam search.
+
+        Parameters
+        ----------
+        q : (batch_size, head_width)
+            Query for the last token
+        k : (batch_size, seq_len, head_width)
+            All keys
+        v : (batch_size, seq_len, head_width)
+            All values
+        """
+        # Only multiply the last query
+        attention = torch.einsum('bd,bld->bl', (q, k)) * self.scaling_factor
+        attention = F.softmax(attention, dim=1)
+        output = torch.einsum('bl,bld->bd', (attention, v))
+        return output
 
 
 class PositionwiseFeedForward(nn.Module):
