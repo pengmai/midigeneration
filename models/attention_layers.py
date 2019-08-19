@@ -31,7 +31,7 @@ class MultiHeadAttention(nn.Module):
         self.mlp = nn.Linear(self.hidden_size, self.hidden_size)
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, q, k, v, mask=None):
+    def forward(self, q, k, v, mask=None, cache=None):
         """
         Forward pass of the multi-head attention mechanism.
 
@@ -47,24 +47,33 @@ class MultiHeadAttention(nn.Module):
         """
         residual = q
         batch_size, seq_len, _ = q.size()
-
-        # Split off the dimensions of q, k, & v into separate attention heads.
-        q = self.Q(q).view(batch_size, seq_len,
-                           self.num_heads, self.head_width)
+        if cache is not None:
+            # Only take the last query
+            q = q[:, -1, :] # (batch_size, hidden_size)
+            q = self.Q(q).view(batch_size, self.num_heads, self.head_width)
+        else:
+            # Split off the dimensions of q, k, & v into separate attention heads.
+            q = self.Q(q).view(batch_size, seq_len,
+                               self.num_heads, self.head_width)
+            q = q.transpose(1, 2)
         k = self.K(k).view(batch_size, seq_len,
                            self.num_heads, self.head_width)
         v = self.V(v).view(batch_size, seq_len,
                            self.num_heads, self.head_width)
 
         # (batch_size, num_heads, seq_len, head_width)
-        q = q.transpose(1, 2)
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
 
         # Create batch_size x num_heads identical masks.
         if mask is not None:
             mask = mask.unsqueeze(1).repeat(1, self.num_heads, 1, 1)
-        output, attention = self.attention(q, k, v, mask=mask)
+        output, attention = self.attention(q, k, v, mask=mask, cache=cache)
+
+        if cache is not None:
+            output = self.mlp(output.view(batch_size, -1))
+            output = self.layer_norm(output + residual[:, -1, :])
+            return output, attention
 
         # Concatenate the results of the multiple attention heads together.
         output = output.transpose(2, 1).contiguous().view(
@@ -85,7 +94,7 @@ class ScaledDotProductAttention(nn.Module):
         self.scaling_factor = torch.rsqrt(
             torch.tensor(config.hidden_size, dtype=torch.float))
 
-    def forward(self, q, k, v, mask=None):
+    def forward(self, q, k, v, mask=None, cache=None):
         attn = torch.einsum('bhqd,bhkd->bhqk', (q, k)) * self.scaling_factor
         if mask is not None:
             attn = attn.masked_fill(mask, -math.inf)
@@ -113,7 +122,11 @@ class RelativeDotProductAttention(nn.Module):
         super(RelativeDotProductAttention, self).__init__()
         self.max_relative_position = config.max_relative_position
         head_width = config.hidden_size // config.num_heads
-        self.relations_keys = nn.Parameter(torch.randn(config.num_heads, self.max_relative_position, head_width))
+        self.relations_keys = nn.Parameter(
+            torch.randn(
+                config.num_heads,
+                self.max_relative_position,
+                head_width))
         self.softmax = nn.Softmax(dim=3)
         self.dropout = nn.Dropout(config.dropout)
 
@@ -131,17 +144,26 @@ class RelativeDotProductAttention(nn.Module):
         # Only return the bottom seq_len rows.
         return padded[:, start_slice:, :]
 
-    def forward(self, q, k, v, mask=None):
-        logits = torch.einsum('bhqd,bhkd->bhqk', (q, k))
-        rel_keys = self._get_rel_embeddings(self.relations_keys, q.shape[2])
-        rel_logits = torch.einsum('bhqd,hmd->bhqm', (q, rel_keys))
-        logits += rel_to_abs(rel_logits)
-        if mask is not None:
-            logits = logits.masked_fill(mask, -math.inf)
+    def forward(self, q, k, v, mask=None, cache=None):
+        seq_len = k.shape[2]
+        rel_keys = self._get_rel_embeddings(self.relations_keys, seq_len)
+        if cache is not None: # Only compute attention for the last query
+            logits = torch.einsum('bhd,bhkd->bhk', (q, k))
+            rel_logits = torch.einsum('bhd,hkd->bhk', (q, rel_keys))
+            logits += rel_logits
+            weights = F.softmax(logits, dim=2)
+            dropped_weights = self.dropout(weights)
+            output = torch.einsum('bhl,bhld->bhd', (dropped_weights, v))
+        else:
+            logits = torch.einsum('bhqd,bhkd->bhqk', (q, k))
+            rel_logits = torch.einsum('bhqd,hmd->bhqm', (q, rel_keys))
+            logits += rel_to_abs(rel_logits)
+            if mask is not None:
+                logits = logits.masked_fill(mask, -math.inf)
 
-        weights = self.softmax(logits)
-        dropped_weights = self.dropout(weights)
-        output = torch.matmul(weights, v)
+            weights = self.softmax(logits)
+            dropped_weights = self.dropout(weights)
+            output = torch.matmul(dropped_weights, v)
         return output, weights
 
 

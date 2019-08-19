@@ -17,10 +17,10 @@ _config = {
 }
 
 _music_config = {
-    'vocab_size': 240,
-    'hidden_size': 64, # Originally 256
-    'feed_forward_size': 256, # Originally 1024
-    'max_relative_position': 512,
+    'vocab_size': 388,
+    'hidden_size': 256, # Originally 256
+    'feed_forward_size': 1024, # Originally 1024
+    'max_relative_position': 1024,
     'attention_type': 'dot_product_relative'
 }
 

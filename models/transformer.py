@@ -24,7 +24,6 @@ def get_subsequent_mask(seq):
         torch.ones((seq_len, seq_len), device=seq.device, dtype=torch.uint8), diagonal=1)
     subsequent_mask = subsequent_mask.unsqueeze(
         0).expand(batch_size, -1, -1)  # b x ls x ls
-
     return subsequent_mask.to(device)
 
 
@@ -34,12 +33,15 @@ class DecoderLayer(nn.Module):
         self.self_attn = MultiHeadAttention(config)
         self.mlp = PositionwiseFeedForward(config)
 
-    def forward(self, inputs, mask=None):
+    def forward(self, inputs, mask=None, cache=None):
         """Forward pass of a single decoder layer."""
         contexts, attention_weights = self.self_attn(
-            inputs, inputs, inputs, mask=mask)
+            inputs, inputs, inputs, mask=mask, cache=cache)
         contexts = self.mlp(contexts)
-
+        if cache is not None:
+            seq_len = inputs.shape[1]
+            cache[:, seq_len - 1] = contexts
+            return cache[:, :seq_len], attention_weights
         return contexts, attention_weights
 
 
@@ -64,7 +66,7 @@ class TransformerDecoder(nn.Module):
 
         self.out = nn.Linear(self.hidden_size, self.vocab_size)
 
-    def forward(self, inputs, return_attention=True):
+    def forward(self, inputs, return_attention=True, cache=None):
         """
         Forward pass of the Transformer Decoder.
         Parameters
@@ -73,8 +75,12 @@ class TransformerDecoder(nn.Module):
             The sequence that has been generated so far.
         return_attention : bool
             If True, return attention weights.
+        cache : (num_layers, batch_size, seq_len, hidden_size)
+            Cached computations of multi-head attention. Used to accelerate
+            generating.
         """
-        subsequent_mask = get_subsequent_mask(inputs)
+        # Don't bother masking if intermediate computations are cached.
+        subsequent_mask = get_subsequent_mask(inputs) if cache is None else None
 
         # batch_size x seq_len x hidden_size
         embed = self.embedding(inputs)
@@ -83,8 +89,11 @@ class TransformerDecoder(nn.Module):
 
         self_attention_weights_list = []
         contexts = embed
-        for layer in self.layers:
-            contexts, self_attention = layer(contexts, mask=subsequent_mask)
+        for i, layer in enumerate(self.layers):
+            contexts, self_attention = layer(
+                contexts,
+                mask=subsequent_mask,
+                cache=None if cache is None else cache[i])
             if return_attention:
                 self_attention_weights_list.append(self_attention)
 
@@ -95,19 +104,35 @@ class TransformerDecoder(nn.Module):
             return output, self_attention_weights
         return output
 
+    def _initialize_cache(self, batch_size, seq_len):
+        """
+        Initialize the cache for intermediate computations between layers. Used
+        for decoding.
+        """
+        return torch.zeros(
+            self.num_layers,
+            batch_size,
+            seq_len,
+            self.hidden_size)
+
     def generate(self, primer, steps=500, verbose=True):
         """
         Generates a sequence of steps length from the given primer, taking the
         most likely next word at each step.
         """
         outputs = primer.to(device)
+        batch_size, primer_len = primer.shape
+        cache = self._initialize_cache(batch_size, primer_len + steps)
 
         range_iter = range(steps)
         if verbose:
             range_iter = tqdm(range_iter, desc='Greedy decoding')
 
         for _ in range_iter:
-            decoder_outputs = self.forward(outputs, return_attention=False)
+            decoder_outputs = self.forward(
+                outputs,
+                return_attention=False,
+                cache=cache)
             next_word = F.softmax(decoder_outputs[0, -1, :], dim=0).max(0).indices
             next_word = next_word.view(1, 1)
             outputs = torch.cat((outputs, next_word), dim=1)
@@ -118,6 +143,7 @@ class TransformerDecoder(nn.Module):
         assert self.vocab_size >= beam_width
 
         batch_size, primer_len = primer.shape
+        cache = self._initialize_cache(batch_size, primer_len + steps)
         # The saved top beam_width candidates
         beam = torch.zeros(batch_size, beam_width, primer_len + steps).long().to(device)
         beam[:, :, :primer_len] = primer.view(batch_size, 1, primer_len).repeat(1, beam_width, 1)
@@ -131,9 +157,9 @@ class TransformerDecoder(nn.Module):
         for step in step_iter:
             # (batch_size * beam_width, seq_len)
             inputs = beam[:, :, :step].view(-1, step)
-            output, _ = self.forward(inputs)
+            output = self.forward(inputs, return_attention=False, cache=cache)
             # (batch_size * beam_width, vocab_size)
-            output = F.log_softmax(output, dim=2)[:, -1, :]
+            output = F.log_softmax(output[:, -1, :], dim=1)
 
             # Consider only the top beam_width candidates for the next token.
             # This is actually a deviation from the full beam search algorithm -
