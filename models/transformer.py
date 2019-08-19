@@ -113,29 +113,29 @@ class TransformerDecoder(nn.Module):
             self.num_layers,
             batch_size,
             seq_len,
-            self.hidden_size)
+            self.hidden_size).to(device)
 
     def generate(self, primer, steps=500, verbose=True):
         """
         Generates a sequence of steps length from the given primer, taking the
         most likely next word at each step.
         """
-        outputs = primer.to(device)
         batch_size, primer_len = primer.shape
         cache = self._initialize_cache(batch_size, primer_len + steps)
 
-        range_iter = range(steps)
+        range_iter = range(primer_len, primer_len + steps)
         if verbose:
             range_iter = tqdm(range_iter, desc='Greedy decoding')
 
-        for _ in range_iter:
+        outputs = torch.zeros(batch_size, primer_len + steps).long().to(device)
+        outputs[:, :primer_len] = primer
+        for i in range_iter:
             decoder_outputs = self.forward(
-                outputs,
+                outputs[:, :i],
                 return_attention=False,
                 cache=cache)
-            next_word = F.softmax(decoder_outputs[0, -1, :], dim=0).max(0).indices
-            next_word = next_word.view(1, 1)
-            outputs = torch.cat((outputs, next_word), dim=1)
+            next_word = F.softmax(decoder_outputs[:, -1, :], dim=1).max(1).indices
+            outputs[:, i] = next_word
         return outputs
 
     def beam_search(self, primer, beam_width, steps=500, verbose=True):
@@ -143,7 +143,7 @@ class TransformerDecoder(nn.Module):
         assert self.vocab_size >= beam_width
 
         batch_size, primer_len = primer.shape
-        cache = self._initialize_cache(batch_size, primer_len + steps)
+        cache = self._initialize_cache(batch_size * beam_width, primer_len + steps)
         # The saved top beam_width candidates
         beam = torch.zeros(batch_size, beam_width, primer_len + steps).long().to(device)
         beam[:, :, :primer_len] = primer.view(batch_size, 1, primer_len).repeat(1, beam_width, 1)
